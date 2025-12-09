@@ -7,6 +7,8 @@ import '../../utils/app_localizations.dart';
 import '../../widgets/reusable/decorated_background.dart';
 import '../../widgets/reusable/section_title.dart';
 import '../../widgets/reusable/patient_card.dart';
+import '../../widgets/reusable/stat_card.dart';
+import '../../widgets/reusable/alert_card.dart';
 
 class DoctorDashboardScreen extends StatefulWidget {
   const DoctorDashboardScreen({super.key});
@@ -254,61 +256,59 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Quick Stats Row
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildQuickStat(
-                            icon: Icons.people,
-                            value: '${_mockPatients.length}',
-                            label: AppLocalizations.of(
-                              context,
-                            )!.get('totalPatients'),
-                            color: AppColors.primaryBlue,
-                          ),
-                        ),
-                        const SizedBox(width: AppDimensions.paddingM),
-                        Expanded(
-                          child: _buildQuickStat(
-                            icon: Icons.warning_amber_rounded,
-                            value:
-                                '${_mockPatients.where((p) => p['status'] != 'Normal').length}',
-                            label: 'Need Attention',
-                            color: Colors.orange,
-                          ),
-                        ),
-                      ],
+                    // Quick Stats Row
+                    StatCard(
+                      icon: Icons.people,
+                      value: '${_mockPatients.length}',
+                      label: AppLocalizations.of(context)!.get('totalPatients'),
+                      color: AppColors.primaryBlue,
+                    ),
+                    const SizedBox(height: AppDimensions.paddingL),
+                    StatCard(
+                      icon: Icons.warning_amber_rounded,
+                      value:
+                          '${_mockPatients.where((p) => p['status'] != 'Normal').length}',
+                      label: 'Need Attention',
+                      color: Colors.orange,
                     ),
                     const SizedBox(height: AppDimensions.paddingM),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildQuickStat(
-                            icon: Icons.message,
-                            value: '3',
-                            label: AppLocalizations.of(
-                              context,
-                            )!.get('pendingMessages'),
-                            color: AppColors.accentTeal,
-                          ),
-                        ),
-                        const SizedBox(width: AppDimensions.paddingM),
-                        Expanded(
-                          child: _buildQuickStat(
-                            icon: Icons.calendar_today,
-                            value: '2',
-                            label: AppLocalizations.of(
-                              context,
-                            )!.get('todayAppointments'),
-                            color: Colors.purple,
-                          ),
-                        ),
-                      ],
+                    StatCard(
+                      icon: Icons.message,
+                      value: '3',
+                      label: AppLocalizations.of(
+                        context,
+                      )!.get('pendingMessages'),
+                      color: AppColors.accentTeal,
+                    ),
+                    const SizedBox(height: AppDimensions.paddingL),
+                    StatCard(
+                      icon: Icons.calendar_today,
+                      value: '2',
+                      label: AppLocalizations.of(
+                        context,
+                      )!.get('todayAppointments'),
+                      color: Colors.purple,
                     ),
                     const SizedBox(height: AppDimensions.paddingL),
 
                     // Critical Patients Alert
                     if (_mockPatients.any((p) => p['status'] == 'Critical'))
-                      _buildCriticalAlert(),
+                      AlertCard(
+                        title: 'Critical Alert',
+                        message:
+                            '${_mockPatients.where((p) => p['status'] == 'Critical').length} patient(s) need immediate attention',
+                        onTap: () {
+                          final criticalPatients =
+                              _mockPatients
+                                  .where((p) => p['status'] == 'Critical')
+                                  .toList();
+                          Navigator.pushNamed(
+                            context,
+                            '/patient_detail',
+                            arguments: criticalPatients.first,
+                          );
+                        },
+                      ),
 
                     const SizedBox(height: AppDimensions.paddingL),
 
@@ -496,135 +496,6 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildQuickStat({
-    required IconData icon,
-    required String value,
-    required String label,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(AppDimensions.paddingM),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
-                ),
-                Text(
-                  label,
-                  style: const TextStyle(fontSize: 11, color: AppColors.grey),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCriticalAlert() {
-    final criticalPatients =
-        _mockPatients.where((p) => p['status'] == 'Critical').toList();
-
-    return Container(
-      padding: const EdgeInsets.all(AppDimensions.paddingM),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.error.withOpacity(0.1),
-            AppColors.error.withOpacity(0.05),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.error.withOpacity(0.3)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.error.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.warning_rounded,
-              color: AppColors.error,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: AppDimensions.paddingM),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Critical Alert',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.error,
-                    fontSize: 14,
-                  ),
-                ),
-                Text(
-                  '${criticalPatients.length} patient(s) need immediate attention',
-                  style: TextStyle(
-                    color: AppColors.error.withOpacity(0.8),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pushNamed(
-                context,
-                '/patient_detail',
-                arguments: criticalPatients.first,
-              );
-            },
-            child: const Text(
-              'View',
-              style: TextStyle(
-                color: AppColors.error,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
