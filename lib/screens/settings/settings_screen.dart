@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../utils/constants.dart';
 import '../../models/settings_model.dart';
 import '../../services/storage_service.dart';
+import '../../services/auth_service.dart';
 import '../../widgets/reusable/custom_button.dart';
 
 import '../../utils/app_localizations.dart';
@@ -30,6 +31,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _handleLogout() async {
+    await AuthService.signOut();
     await StorageService.logout();
     if (mounted) {
       Navigator.pushNamedAndRemoveUntil(context, '/auth', (route) => false);

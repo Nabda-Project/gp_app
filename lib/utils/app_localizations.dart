@@ -83,6 +83,21 @@ class AppLocalizations {
           'Hello! I received your message. I will check your vitals and get back to you shortly.',
       'chat': 'Chat',
 
+      // Doctor screens
+      'doctorDashboard': 'Doctor Dashboard',
+      'myPatients': 'My Patients',
+      'totalPatients': 'Total Patients',
+      'pendingMessages': 'Pending Messages',
+      'todayAppointments': "Today's Appointments",
+      'recentPatients': 'Recent Patients',
+      'searchPatients': 'Search patients...',
+      'viewPatient': 'View Patient',
+      'sendMessage': 'Send Message',
+      'patientDetails': 'Patient Details',
+      'lastUpdate': 'Last Update',
+      'typePatientMessage': 'Write a message to patient...',
+      'vitalsHistory': 'Vitals History',
+
       // Chatbots and reminders
     },
     'ar': {
@@ -155,6 +170,20 @@ class AppLocalizations {
       'doctorResponse':
           'مرحباً! لقد استلمت رسالتك. سأتحقق من علاماتك الحيوية وأعود إليك قريباً.',
       'chat': 'محادثة',
+
+      // Doctor screens
+      'doctorDashboard': 'لوحة الطبيب',
+      'myPatients': 'مرضاي',
+      'totalPatients': 'إجمالي المرضى',
+      'pendingMessages': 'رسائل معلقة',
+      'todayAppointments': 'مواعيد اليوم',
+      'recentPatients': 'المرضى الأخيرين',
+      'searchPatients': 'ابحث عن مريض...',
+      'viewPatient': 'عرض المريض',
+      'sendMessage': 'إرسال رسالة',
+      'patientDetails': 'تفاصيل المريض',
+      'lastUpdate': 'آخر تحديث',
+      'typePatientMessage': 'اكتب رسالة للمريض...',
 
       // Chatbot
       'assistantTitle': 'مساعد هيلث سينك',

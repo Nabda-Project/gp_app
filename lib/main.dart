@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'services/storage_service.dart';
 import 'models/settings_model.dart';
 import 'utils/app_localizations.dart';
@@ -9,6 +11,7 @@ import 'routes/app_routes.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   try {
     await StorageService.init();
   } catch (e) {
@@ -32,8 +35,6 @@ class GPApp extends StatelessWidget {
           title: 'HealthSync',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
-          // darkTheme removed
-          // themeMode removed, defaults to system but we only have light theme now, effectively light.
           locale: Locale(settings.languageCode),
           supportedLocales: const [
             Locale('en', ''), // English

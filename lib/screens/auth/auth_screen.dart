@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../utils/constants.dart';
 import '../../widgets/reusable/app_logo.dart';
 import '../../widgets/reusable/custom_button.dart';
 import '../../services/storage_service.dart';
+import '../../services/auth_service.dart';
+import '../../services/firestore_service.dart';
 import '../../models/user_model.dart';
 import '../../utils/app_localizations.dart';
 
@@ -19,10 +22,12 @@ class _AuthScreenState extends State<AuthScreen>
   final _loginFormKey = GlobalKey<FormState>();
   final _registerFormKey = GlobalKey<FormState>();
   String _selectedRole = 'Patient';
+  bool _isLoading = false;
 
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _loginEmailController = TextEditingController();
+  final _loginPasswordController = TextEditingController();
   final _registerNameController = TextEditingController();
   final _registerEmailController = TextEditingController();
   final _registerLicenseController = TextEditingController();
@@ -39,36 +44,277 @@ class _AuthScreenState extends State<AuthScreen>
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _loginEmailController.dispose();
+    _loginPasswordController.dispose();
     _registerNameController.dispose();
     _registerEmailController.dispose();
     _registerLicenseController.dispose();
     super.dispose();
   }
 
-  void _handleSuccess(
-    String role,
-    String email,
-    String name,
-    String? license,
-  ) async {
-    final user = UserModel(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      fullName: name,
-      email: email,
-      role: role,
-      licenseNumber: license,
+  void _setLoading(bool value) {
+    if (mounted) setState(() => _isLoading = value);
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: AppColors.error),
     );
+  }
 
-    await StorageService.saveUser(user);
+  void _showSuccess(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.green),
+    );
+  }
 
-    if (mounted) {
+  Future<void> _handleAuthSuccess(
+    User firebaseUser,
+    String? role, {
+    String? license,
+  }) async {
+    print(
+      "DEBUG: _handleAuthSuccess started. Role: $role, User: ${firebaseUser.uid}",
+    );
+    try {
+      if (role != null) {
+        // REGISTRATION FLOW (Role is known)
+        print("DEBUG: Registration flow. Creating user model...");
+        final user = UserModel(
+          id: firebaseUser.uid,
+          fullName: firebaseUser.displayName ?? 'User',
+          email: firebaseUser.email ?? '',
+          role: role,
+          licenseNumber: license,
+        );
+
+        // Save to Firestore & Local Storage
+        print("DEBUG: Saving to Firestore...");
+        await FirestoreService.saveUser(user);
+        print("DEBUG: Saved to Firestore. Saving to local storage...");
+        await StorageService.saveUser(user);
+        print("DEBUG: Saved to local storage. Navigating...");
+
+        if (mounted) {
+          _navigateToDashboard(role);
+        }
+      } else {
+        // LOGIN FLOW (Role unknown, check Firestore)
+        print("DEBUG: Login flow. checking Firestore for user...");
+        final existingUser = await FirestoreService.getUser(firebaseUser.uid);
+        print("DEBUG: Firestore check complete. Result: ${existingUser?.role}");
+
+        if (existingUser != null) {
+          // Returning user -> Save to local storage & Navigate
+          print("DEBUG: Saving existing user to local storage...");
+          await StorageService.saveUser(existingUser);
+          if (mounted) {
+            _navigateToDashboard(existingUser.role);
+          }
+        } else {
+          // New user via Google/Phone -> Go to Role Selection
+          print("DEBUG: User not found in Firestore. Going to Role Selection.");
+          if (mounted) {
+            Navigator.pushReplacementNamed(context, '/role_selection');
+          }
+        }
+      }
+    } catch (e, stack) {
+      print("DEBUG: Error in _handleAuthSuccess: $e");
+      print("DEBUG: Stack trace: $stack");
+      _showError("Error fetching user profile: $e");
+    } finally {
+      print("DEBUG: _handleAuthSuccess completed.");
+    }
+  }
+
+  void _navigateToDashboard(String role) {
+    if (role == 'Doctor') {
+      Navigator.pushReplacementNamed(context, '/doctor_dashboard');
+    } else {
       Navigator.pushReplacementNamed(context, '/patient_dashboard');
+    }
+  }
+
+  // ==================== EMAIL/PASSWORD LOGIN ====================
+  Future<void> _handleEmailLogin() async {
+    if (!_loginFormKey.currentState!.validate()) return;
+
+    _setLoading(true);
+    try {
+      final credential = await AuthService.signInWithEmail(
+        _loginEmailController.text.trim(),
+        _loginPasswordController.text,
+      );
+      if (credential.user != null) {
+        await _handleAuthSuccess(credential.user!, 'Patient');
+      }
+    } on FirebaseAuthException catch (e) {
+      _showError(_getAuthErrorMessage(e.code));
+    } catch (e) {
+      _showError('Login failed: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // ==================== EMAIL/PASSWORD REGISTER ====================
+  Future<void> _handleEmailRegister() async {
+    if (!_registerFormKey.currentState!.validate()) return;
+
+    _setLoading(true);
+    try {
+      final credential = await AuthService.registerWithEmail(
+        _registerEmailController.text.trim(),
+        _passwordController.text,
+      );
+
+      // Update display name
+      await credential.user?.updateDisplayName(
+        _registerNameController.text.trim(),
+      );
+
+      if (credential.user != null) {
+        final role =
+            _selectedRole == AppLocalizations.of(context)!.get('doctor')
+                ? 'Doctor'
+                : 'Patient';
+        final license =
+            role == 'Doctor' ? _registerLicenseController.text : null;
+        await _handleAuthSuccess(credential.user!, role, license: license);
+      }
+    } on FirebaseAuthException catch (e) {
+      _showError(_getAuthErrorMessage(e.code));
+    } catch (e) {
+      _showError('Registration failed: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // ==================== GOOGLE SIGN-IN ====================
+  Future<void> _handleGoogleSignIn() async {
+    _setLoading(true);
+    try {
+      final credential = await AuthService.signInWithGoogle();
+      if (credential?.user != null) {
+        // Pass null for role to trigger Firestore check
+        await _handleAuthSuccess(credential!.user!, null);
+      }
+    } on FirebaseAuthException catch (e) {
+      _showError(_getAuthErrorMessage(e.code));
+    } catch (e) {
+      _showError('Google Sign-In failed: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // ==================== FORGOT PASSWORD ====================
+  void _showForgotPasswordDialog() {
+    final emailController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: const Text('Reset Password'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Enter your email address and we\'ll send you a link to reset your password.',
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: InputDecoration(
+                    labelText: 'Email Address',
+                    prefixIcon: const Icon(
+                      Icons.email,
+                      color: AppColors.primaryBlue,
+                    ),
+                    filled: true,
+                    fillColor: const Color(0xFFF5F7FA),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  final email = emailController.text.trim();
+                  if (email.isEmpty || !email.contains('@')) {
+                    _showError('Please enter a valid email');
+                    return;
+                  }
+                  Navigator.pop(context);
+                  _setLoading(true);
+                  try {
+                    await AuthService.sendPasswordResetEmail(email);
+                    _showSuccess(
+                      'Password reset email sent! Check your inbox.',
+                    );
+                  } on FirebaseAuthException catch (e) {
+                    _showError(_getAuthErrorMessage(e.code));
+                  } catch (e) {
+                    _showError('Failed to send reset email: $e');
+                  } finally {
+                    _setLoading(false);
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryBlue,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text(
+                  'Send Reset Link',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+    );
+  }
+
+  String _getAuthErrorMessage(String code) {
+    switch (code) {
+      case 'user-not-found':
+        return 'No user found with this email';
+      case 'wrong-password':
+        return 'Incorrect password';
+      case 'email-already-in-use':
+        return 'Email is already registered';
+      case 'weak-password':
+        return 'Password is too weak';
+      case 'invalid-email':
+        return 'Invalid email address';
+      case 'invalid-verification-code':
+        return 'Invalid OTP code';
+      case 'invalid-phone-number':
+        return 'Invalid phone number';
+      default:
+        return 'Authentication error: $code';
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // ... (keeping build method as is)
     return Scaffold(
       backgroundColor: AppColors.white,
       body: SafeArea(
@@ -97,7 +343,7 @@ class _AuthScreenState extends State<AuthScreen>
               ),
               const SizedBox(height: AppDimensions.paddingL),
               SizedBox(
-                height: 500, // Fixed height for constraints
+                height: 520,
                 child: TabBarView(
                   controller: _tabController,
                   children: [_buildLoginForm(), _buildRegisterForm()],
@@ -110,7 +356,6 @@ class _AuthScreenState extends State<AuthScreen>
     );
   }
 
-  // ...
   Widget _buildLoginForm() {
     return Form(
       key: _loginFormKey,
@@ -135,6 +380,7 @@ class _AuthScreenState extends State<AuthScreen>
             AppLocalizations.of(context)!.get('password'),
             Icons.lock,
             isPassword: true,
+            controller: _loginPasswordController,
             validator: (value) {
               if (value == null || value.isEmpty) {
                 return AppLocalizations.of(context)!.get('enterPassword');
@@ -149,32 +395,20 @@ class _AuthScreenState extends State<AuthScreen>
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
-              onPressed: () {},
+              onPressed: _showForgotPasswordDialog,
               child: Text(AppLocalizations.of(context)!.get('forgotPassword')),
             ),
           ),
-          const SizedBox(height: AppDimensions.paddingL),
+          const SizedBox(height: AppDimensions.paddingM),
           CustomButton(
             text: AppLocalizations.of(context)!.get('login'),
-            onPressed: () {
-              if (_loginFormKey.currentState!.validate()) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      AppLocalizations.of(context)!.get('processingLogin'),
-                    ),
-                  ),
-                );
-                // Real Login logic using captured email
-                _handleSuccess(
-                  'Patient', // Login is always patient in this simple demo or fetched from backend
-                  _loginEmailController.text,
-                  'Returning User', // In real app, name is fetched from backend
-                  null,
-                );
-              }
-            },
+            isLoading: _isLoading,
+            onPressed: _handleEmailLogin,
           ),
+          const SizedBox(height: AppDimensions.paddingL),
+          _buildDivider(),
+          const SizedBox(height: AppDimensions.paddingM),
+          _buildSocialButtons(),
         ],
       ),
     );
@@ -291,27 +525,8 @@ class _AuthScreenState extends State<AuthScreen>
             const SizedBox(height: AppDimensions.paddingL),
             CustomButton(
               text: AppLocalizations.of(context)!.get('createAccount'),
-              onPressed: () {
-                if (_registerFormKey.currentState!.validate()) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        AppLocalizations.of(context)!.get('creatingAccount'),
-                      ),
-                    ),
-                  );
-                  _handleSuccess(
-                    _selectedRole == AppLocalizations.of(context)!.get('doctor')
-                        ? 'Doctor'
-                        : 'Patient', // Normalize role
-                    _registerEmailController.text,
-                    _registerNameController.text,
-                    _selectedRole == AppLocalizations.of(context)!.get('doctor')
-                        ? _registerLicenseController.text
-                        : null,
-                  );
-                }
-              },
+              isLoading: _isLoading,
+              onPressed: _handleEmailRegister,
             ),
           ],
         ),
@@ -319,8 +534,53 @@ class _AuthScreenState extends State<AuthScreen>
     );
   }
 
+  Widget _buildDivider() {
+    return Row(
+      children: [
+        const Expanded(child: Divider()),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            'OR',
+            style: TextStyle(
+              color: AppColors.grey,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        const Expanded(child: Divider()),
+      ],
+    );
+  }
+
+  Widget _buildSocialButtons() {
+    return Column(
+      children: [
+        // Google Sign-In Button
+        OutlinedButton.icon(
+          onPressed: _isLoading ? null : _handleGoogleSignIn,
+          icon: Image.network(
+            'https://www.google.com/favicon.ico',
+            height: 24,
+            width: 24,
+            errorBuilder:
+                (_, __, ___) => const Icon(Icons.g_mobiledata, size: 24),
+          ),
+          label: const Text('Continue with Google'),
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            minimumSize: const Size(double.infinity, 48),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            side: BorderSide(color: Colors.grey.shade300),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildRoleButton(String role) {
-    // ... (keeping role button as is)
     final isSelected = _selectedRole == role;
     return GestureDetector(
       onTap: () {

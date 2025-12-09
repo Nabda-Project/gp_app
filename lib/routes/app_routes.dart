@@ -9,6 +9,10 @@ import '../screens/patient/chatbot_screen.dart';
 import '../screens/notifications/notifications_screen.dart';
 import '../screens/patient/doctor_chat_screen.dart';
 import '../screens/patient/follow_ups_screen.dart';
+import '../screens/doctor/doctor_dashboard_screen.dart';
+import '../screens/doctor/patient_detail_screen.dart';
+import '../screens/doctor/patient_chat_screen.dart';
+import '../screens/role_selection/role_selection_screen.dart';
 
 class AppRoutes {
   static const String splash = '/';
@@ -21,6 +25,11 @@ class AppRoutes {
   static const String notifications = '/notifications';
   static const String doctorChat = '/doctor_chat';
   static const String followUps = '/follow_ups';
+  // Doctor routes
+  static const String doctorDashboard = '/doctor_dashboard';
+  static const String patientDetail = '/patient_detail';
+  static const String patientChat = '/patient_chat';
+  static const String roleSelection = '/role_selection';
 
   static Map<String, WidgetBuilder> get routes => {
     splash: (context) => const SplashScreen(),
@@ -33,5 +42,10 @@ class AppRoutes {
     followUps: (context) => const FollowUpsScreen(),
     profile: (context) => const ProfileScreen(),
     settings: (context) => const SettingsScreen(),
+    // Doctor screens
+    doctorDashboard: (context) => const DoctorDashboardScreen(),
+    patientDetail: (context) => const PatientDetailScreen(),
+    patientChat: (context) => const PatientChatScreen(),
+    roleSelection: (context) => const RoleSelectionScreen(),
   };
 }

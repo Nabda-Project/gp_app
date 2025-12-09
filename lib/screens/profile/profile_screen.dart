@@ -3,6 +3,7 @@ import '../../utils/constants.dart';
 import '../../models/user_model.dart';
 import '../../utils/app_localizations.dart';
 import '../../services/storage_service.dart';
+import '../../services/auth_service.dart';
 import '../../widgets/reusable/decorated_background.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -123,6 +124,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             TextButton(
                               onPressed: () async {
                                 Navigator.pop(context);
+                                await AuthService.signOut();
                                 await StorageService.logout();
                                 if (context.mounted) {
                                   Navigator.pushNamedAndRemoveUntil(

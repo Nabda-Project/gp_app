@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../utils/constants.dart';
 import '../../widgets/reusable/custom_card.dart';
 import '../../widgets/reusable/custom_button.dart';
-import '../../widgets/reusable/section_title.dart';
+import '../../services/firestore_service.dart';
+import '../../services/storage_service.dart';
+import '../../models/user_model.dart';
 
 class RoleSelectionScreen extends StatefulWidget {
   const RoleSelectionScreen({super.key});
@@ -13,6 +16,7 @@ class RoleSelectionScreen extends StatefulWidget {
 
 class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
   String? selectedRole;
+  bool _isLoading = false;
 
   void _selectRole(String role) {
     setState(() {
@@ -20,20 +24,62 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
     });
   }
 
-  @override
-  void initState() {
-    super.initState();
-    print("DEBUG: RoleSelectionScreen initialized");
+  Future<void> _confirmRole() async {
+    if (selectedRole == null) return;
+
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    if (firebaseUser == null) {
+      // Should not happen here, but handle safely
+      Navigator.pushReplacementNamed(context, '/auth');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final user = UserModel(
+        id: firebaseUser.uid,
+        fullName: firebaseUser.displayName ?? 'User',
+        email: firebaseUser.email ?? '',
+        role: selectedRole == 'doctor' ? 'Doctor' : 'Patient',
+        // Note: For doctors via Google, license might be collected later or assumed optional for now
+      );
+
+      // Save to Firestore
+      await FirestoreService.saveUser(user);
+
+      // Save locally (optional, for offline/quick access)
+      await StorageService.saveUser(user);
+
+      if (mounted) {
+        if (selectedRole == 'doctor') {
+          Navigator.pushReplacementNamed(context, '/doctor_dashboard');
+        } else {
+          Navigator.pushReplacementNamed(context, '/patient_dashboard');
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error saving profile: $e')));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Basic localization fallback if needed
+    final isDoctor = selectedRole == 'doctor';
+    final isPatient = selectedRole == 'patient';
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.darkBlue),
+        // iconTheme: const IconThemeData(color: AppColors.darkBlue),
+        automaticallyImplyLeading: false, // Don't allow going back to auth
       ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingL),
@@ -41,9 +87,13 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SizedBox(height: AppDimensions.paddingM),
-            const SectionTitle(
-              title: AppStrings.roleSelectionTitle,
-              center: true,
+            Text(
+              "Choose your account type",
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppColors.darkBlue,
+              ),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 50),
 
@@ -52,18 +102,18 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                 children: [
                   Expanded(
                     child: CustomCard(
-                      label: AppStrings.roleDoctor,
-                      icon: Icons.local_hospital, // Using standard icon
-                      isSelected: selectedRole == 'doctor',
+                      label: "Doctor",
+                      icon: Icons.local_hospital,
+                      isSelected: isDoctor,
                       onTap: () => _selectRole('doctor'),
                     ),
                   ),
                   const SizedBox(width: AppDimensions.paddingM),
                   Expanded(
                     child: CustomCard(
-                      label: AppStrings.rolePatient,
-                      icon: Icons.person, // Using standard icon
-                      isSelected: selectedRole == 'patient',
+                      label: "Patient",
+                      icon: Icons.person,
+                      isSelected: isPatient,
                       onTap: () => _selectRole('patient'),
                     ),
                   ),
@@ -78,15 +128,9 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
               opacity: selectedRole != null ? 1.0 : 0.0,
               duration: const Duration(milliseconds: 300),
               child: CustomButton(
-                text:
-                    "Continue as ${selectedRole == 'doctor' ? 'Doctor' : 'Patient'}",
-                onPressed:
-                    selectedRole != null
-                        ? () {
-                          // Navigate to Auth Screen, passing selected role if needed
-                          Navigator.pushNamed(context, '/auth');
-                        }
-                        : () {}, // No-op if not visible
+                text: "Continue as ${isDoctor ? 'Doctor' : 'Patient'}",
+                isLoading: _isLoading,
+                onPressed: selectedRole != null ? _confirmRole : () {},
               ),
             ),
             const SizedBox(height: 50),

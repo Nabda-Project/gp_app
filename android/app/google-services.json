@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "411680924938",
+    "project_id": "gp-app-c24de",
+    "storage_bucket": "gp-app-c24de.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:411680924938:android:d9455e7c31544e60b786f3",
+        "android_client_info": {
+          "package_name": "com.example.gp_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "411680924938-t1ljgbfb3oqc4cpnndsnjd1j9cpefrsh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.gp_app",
+            "certificate_hash": "ef9a4ad30df1bf75c100a0966f12e2e3dfa167a1"
+          }
+        },
+        {
+          "client_id": "411680924938-vak3d4rmrjjteolqnoism63lhf2v9vvt.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "REMOVED"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "411680924938-vak3d4rmrjjteolqnoism63lhf2v9vvt.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "411680924938-9kfamgo52b0122sjjtto2m39v606rndt.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.gpApp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

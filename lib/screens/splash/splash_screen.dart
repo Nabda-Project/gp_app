@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../utils/constants.dart';
 import '../../widgets/reusable/app_logo.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/storage_service.dart';
+import '../../services/firestore_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -19,12 +21,48 @@ class _SplashScreenState extends State<SplashScreen> {
 
   _navigateToNext() async {
     await Future.delayed(const Duration(milliseconds: 2000), () {});
-    if (mounted) {
-      if (StorageService.isLoggedIn) {
-        Navigator.pushReplacementNamed(context, '/patient_dashboard');
-      } else {
-        Navigator.pushReplacementNamed(context, '/onboarding');
+
+    if (!mounted) return;
+
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    print("DEBUG: Splash - FirebaseAuth User: ${firebaseUser?.uid}");
+
+    if (firebaseUser != null) {
+      // User is signed in with Firebase
+      // Check if we have local user data
+      var user = StorageService.getUser();
+      print("DEBUG: Splash - Local User: ${user?.email}");
+
+      if (user == null) {
+        // No local data (likely fresh install), fetch from Firestore
+        print("Fetching user profile from Firestore...");
+        try {
+          user = await FirestoreService.getUser(firebaseUser.uid);
+          if (user != null) {
+            await StorageService.saveUser(user);
+          }
+        } catch (e) {
+          print("Error fetching user in Splash: $e");
+          // Proceed to role selection if fetch fails or no profile found
+        }
       }
+
+      if (mounted) {
+        if (user != null) {
+          // Profile exists, go to specific dashboard
+          if (user.role == 'Doctor') {
+            Navigator.pushReplacementNamed(context, '/doctor_dashboard');
+          } else {
+            Navigator.pushReplacementNamed(context, '/patient_dashboard');
+          }
+        } else {
+          // Logged in but no profile -> Role Selection
+          Navigator.pushReplacementNamed(context, '/role_selection');
+        }
+      }
+    } else {
+      // Not logged in
+      Navigator.pushReplacementNamed(context, '/onboarding');
     }
   }
 

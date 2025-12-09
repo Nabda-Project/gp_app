@@ -14,6 +14,28 @@ class UserModel {
     required this.role,
     this.licenseNumber,
   });
+
+  /// Convert to Map for Firestore
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'fullName': fullName,
+      'email': email,
+      'role': role,
+      'licenseNumber': licenseNumber,
+    };
+  }
+
+  /// Create from Map (Firestore)
+  factory UserModel.fromMap(Map<String, dynamic> map) {
+    return UserModel(
+      id: map['id'] ?? '',
+      fullName: map['fullName'] ?? '',
+      email: map['email'] ?? '',
+      role: map['role'] ?? 'Patient',
+      licenseNumber: map['licenseNumber'],
+    );
+  }
 }
 
 class UserModelAdapter extends TypeAdapter<UserModel> {
