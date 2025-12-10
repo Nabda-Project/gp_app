@@ -10,6 +10,7 @@ import '../../models/user_model.dart';
 import '../../services/notification_service.dart';
 import '../../utils/app_localizations.dart';
 import '../../widgets/animations/fade_slide_transition.dart';
+import 'dart:developer'; // Added import for dart:developer
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -72,13 +73,17 @@ class _AuthScreenState extends State<AuthScreen>
     String? role, {
     String? license,
   }) async {
-    print(
+    log(
       "DEBUG: _handleAuthSuccess started. Role: $role, User: ${firebaseUser.uid}",
+      name: 'AuthScreen',
     );
     try {
       if (role != null) {
         // REGISTRATION FLOW (Role is known)
-        print("DEBUG: Registration flow. Creating user model...");
+        log(
+          "DEBUG: Registration flow. Creating user model...",
+          name: 'AuthScreen',
+        );
         final user = UserModel(
           id: firebaseUser.uid,
           fullName: firebaseUser.displayName ?? 'User',
@@ -88,42 +93,60 @@ class _AuthScreenState extends State<AuthScreen>
         );
 
         // Save to Firestore & Local Storage
-        print("DEBUG: Saving to Firestore...");
+        log("DEBUG: Saving to Firestore...", name: 'AuthScreen');
         await FirestoreService.saveUser(user);
-        print("DEBUG: Saved to Firestore. Saving to local storage...");
+        log(
+          "DEBUG: Saved to Firestore. Saving to local storage...",
+          name: 'AuthScreen',
+        );
         await StorageService.saveUser(user);
-        print("DEBUG: Saved to local storage. Navigating...");
+        log("DEBUG: Saved to local storage. Navigating...", name: 'AuthScreen');
 
         if (mounted) {
           _navigateToDashboard(role);
         }
       } else {
         // LOGIN FLOW (Role unknown, check Firestore)
-        print("DEBUG: Login flow. checking Firestore for user...");
+        log(
+          "DEBUG: Login flow. checking Firestore for user...",
+          name: 'AuthScreen',
+        );
         final existingUser = await FirestoreService.getUser(firebaseUser.uid);
-        print("DEBUG: Firestore check complete. Result: ${existingUser?.role}");
+        log(
+          "DEBUG: Firestore check complete. Result: ${existingUser?.role}",
+          name: 'AuthScreen',
+        );
 
         if (existingUser != null) {
           // Returning user -> Save to local storage & Navigate
-          print("DEBUG: Saving existing user to local storage...");
+          log(
+            "DEBUG: Saving existing user to local storage...",
+            name: 'AuthScreen',
+          );
           await StorageService.saveUser(existingUser);
           if (mounted) {
             _navigateToDashboard(existingUser.role);
           }
         } else {
           // New user via Google/Phone -> Go to Role Selection
-          print("DEBUG: User not found in Firestore. Going to Role Selection.");
+          log(
+            "DEBUG: User not found in Firestore. Going to Role Selection.",
+            name: 'AuthScreen',
+          );
           if (mounted) {
             Navigator.pushReplacementNamed(context, '/role_selection');
           }
         }
       }
     } catch (e, stack) {
-      print("DEBUG: Error in _handleAuthSuccess: $e");
-      print("DEBUG: Stack trace: $stack");
-      _showError("Error fetching user profile: $e");
+      log(
+        "DEBUG: Error in _handleAuthSuccess: $e",
+        name: 'AuthScreen',
+        error: e,
+        stackTrace: stack,
+      );
     } finally {
-      print("DEBUG: _handleAuthSuccess completed.");
+      log("DEBUG: _handleAuthSuccess completed.", name: 'AuthScreen');
     }
   }
 
@@ -174,6 +197,7 @@ class _AuthScreenState extends State<AuthScreen>
       );
 
       if (credential.user != null) {
+        if (!mounted) return;
         final role =
             _selectedRole == AppLocalizations.of(context)!.get('doctor')
                 ? 'Doctor'
@@ -236,8 +260,8 @@ class _AuthScreenState extends State<AuthScreen>
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          AppColors.primaryBlue.withOpacity(0.15),
-                          AppColors.primaryBlue.withOpacity(0.05),
+                          AppColors.primaryBlue.withValues(alpha: 0.15),
+                          AppColors.primaryBlue.withValues(alpha: 0.05),
                         ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
@@ -287,7 +311,7 @@ class _AuthScreenState extends State<AuthScreen>
                         margin: const EdgeInsets.all(8),
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppColors.primaryBlue.withOpacity(0.1),
+                          color: AppColors.primaryBlue.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Icon(
@@ -326,7 +350,7 @@ class _AuthScreenState extends State<AuthScreen>
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             side: BorderSide(
-                              color: AppColors.grey.withOpacity(0.3),
+                              color: AppColors.grey.withValues(alpha: 0.3),
                               width: 1.5,
                             ),
                             shape: RoundedRectangleBorder(
@@ -352,7 +376,9 @@ class _AuthScreenState extends State<AuthScreen>
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.primaryBlue.withOpacity(0.3),
+                                color: AppColors.primaryBlue.withValues(
+                                  alpha: 0.2,
+                                ),
                                 blurRadius: 8,
                                 offset: const Offset(0, 4),
                               ),
@@ -733,7 +759,7 @@ class _AuthScreenState extends State<AuthScreen>
               isSelected
                   ? [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
                     ),
@@ -781,29 +807,6 @@ class _AuthScreenState extends State<AuthScreen>
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.error, width: 1),
         ),
-      ),
-    );
-  }
-
-  Widget _buildSocialButton(
-    String iconUrl,
-    String label,
-    VoidCallback onPressed,
-  ) {
-    return OutlinedButton.icon(
-      onPressed: _isLoading ? null : onPressed,
-      icon: Image.network(
-        iconUrl,
-        height: 24,
-        width: 24,
-        errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, size: 24),
-      ),
-      label: Text(label),
-      style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        minimumSize: const Size(double.infinity, 48),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        side: BorderSide(color: Colors.grey.shade300),
       ),
     );
   }

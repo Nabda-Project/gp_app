@@ -52,11 +52,11 @@ class FollowUpsScreen extends StatelessWidget {
                 color: AppColors.white,
                 borderRadius: BorderRadius.circular(AppDimensions.radiusM),
                 border: Border.all(
-                  color: AppColors.primaryBlue.withOpacity(0.2),
+                  color: AppColors.primaryBlue.withValues(alpha: 0.2),
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primaryBlue.withOpacity(0.08),
+                    color: AppColors.primaryBlue.withValues(alpha: 0.08),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -65,7 +65,7 @@ class FollowUpsScreen extends StatelessWidget {
               child: ListTile(
                 contentPadding: const EdgeInsets.all(AppDimensions.paddingM),
                 leading: CircleAvatar(
-                  backgroundColor: AppColors.primaryBlue.withOpacity(0.1),
+                  backgroundColor: AppColors.primaryBlue.withValues(alpha: 0.1),
                   child: const Icon(
                     Icons.calendar_today,
                     color: AppColors.primaryBlue,

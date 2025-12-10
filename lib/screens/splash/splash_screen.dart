@@ -1,9 +1,11 @@
+import 'dart:developer';
 import 'package:flutter/material.dart';
 import '../../utils/constants.dart';
 import '../../widgets/reusable/app_logo.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/storage_service.dart';
 import '../../services/firestore_service.dart';
+import '../onboarding/onboarding_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -82,24 +84,31 @@ class _SplashScreenState extends State<SplashScreen>
     if (!mounted) return;
 
     final firebaseUser = FirebaseAuth.instance.currentUser;
-    print("DEBUG: Splash - FirebaseAuth User: ${firebaseUser?.uid}");
+    log(
+      "DEBUG: Splash - FirebaseAuth User: ${firebaseUser?.uid}",
+      name: 'SplashScreen',
+    );
 
     if (firebaseUser != null) {
       // User is signed in with Firebase
       // Check if we have local user data
       var user = StorageService.getUser();
-      print("DEBUG: Splash - Local User: ${user?.email}");
+      log("DEBUG: Splash - Local User: ${user?.email}", name: 'SplashScreen');
 
       if (user == null) {
         // No local data (likely fresh install), fetch from Firestore
-        print("Fetching user profile from Firestore...");
+        log("Fetching user profile from Firestore...", name: 'SplashScreen');
         try {
           user = await FirestoreService.getUser(firebaseUser.uid);
           if (user != null) {
             await StorageService.saveUser(user);
           }
         } catch (e) {
-          print("Error fetching user in Splash: $e");
+          log(
+            "Error fetching user in Splash: $e",
+            name: 'SplashScreen',
+            error: e,
+          );
           // Proceed to role selection if fetch fails or no profile found
         }
       }
@@ -119,7 +128,17 @@ class _SplashScreenState extends State<SplashScreen>
       }
     } else {
       // Not logged in
-      Navigator.pushReplacementNamed(context, '/onboarding');
+      // Not logged in
+      Navigator.pushReplacement(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (_, __, ___) => const OnboardingScreen(),
+          transitionDuration: const Duration(milliseconds: 1000),
+          transitionsBuilder: (_, animation, __, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+        ),
+      );
     }
   }
 
@@ -144,7 +163,7 @@ class _SplashScreenState extends State<SplashScreen>
                     height: 300,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.white.withOpacity(0.08),
+                      color: Colors.white.withValues(alpha: 0.08),
                     ),
                   ),
                 );
@@ -161,7 +180,7 @@ class _SplashScreenState extends State<SplashScreen>
                     height: 250,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.white.withOpacity(0.06),
+                      color: Colors.white.withValues(alpha: 0.06),
                     ),
                   ),
                 );
@@ -174,15 +193,19 @@ class _SplashScreenState extends State<SplashScreen>
                 children: [
                   const Spacer(),
                   // Animated logo with pulse effect
+                  // Animated logo with pulse effect
                   ScaleTransition(
                     scale: _pulseAnimation,
-                    child: Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white.withOpacity(0.2),
+                    child: Hero(
+                      tag: 'app_logo',
+                      child: Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withValues(alpha: 0.2),
+                        ),
+                        child: const AppLogo(size: 120),
                       ),
-                      child: const AppLogo(size: 120),
                     ),
                   ),
                   const SizedBox(height: AppDimensions.paddingL),

@@ -18,7 +18,7 @@ class DecoratedBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color decorColor =
-        circleColor ?? AppColors.primaryBlue.withOpacity(0.04);
+        circleColor ?? AppColors.primaryBlue.withValues(alpha: 0.04);
 
     return Stack(
       children: [
@@ -69,7 +69,7 @@ class DecoratedBackground extends StatelessWidget {
               height: 100,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.accentTeal.withOpacity(0.03),
+                color: AppColors.accentTeal.withValues(alpha: 0.03),
               ),
             ),
           ),

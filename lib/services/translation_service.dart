@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'package:translator/translator.dart';
 
 /// Service for translating text using Google Translate API
@@ -14,7 +15,7 @@ class TranslationService {
       final translation = await _translator.translate(text, from: from, to: to);
       return translation.text;
     } catch (e) {
-      print('Translation error: $e');
+      log('Translation error: $e', name: 'TranslationService');
       return text; // Return original text on error
     }
   }

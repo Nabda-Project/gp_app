@@ -61,9 +61,11 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
         }
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error saving profile: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error saving profile: $e')));
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

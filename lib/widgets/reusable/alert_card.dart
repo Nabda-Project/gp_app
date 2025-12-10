@@ -25,17 +25,17 @@ class AlertCard extends StatelessWidget {
       padding: const EdgeInsets.all(AppDimensions.paddingM),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
+          colors: [color.withValues(alpha: 0.1), color.withValues(alpha: 0.05)],
         ),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
+              color: color.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: color, size: 24),
@@ -55,7 +55,10 @@ class AlertCard extends StatelessWidget {
                 ),
                 Text(
                   message,
-                  style: TextStyle(color: color.withOpacity(0.8), fontSize: 12),
+                  style: TextStyle(
+                    color: color.withValues(alpha: 0.8),
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),

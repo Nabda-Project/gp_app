@@ -32,7 +32,7 @@ class CustomButton extends StatelessWidget {
                 borderRadius: BorderRadius.circular(AppDimensions.radiusL),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primaryBlue.withOpacity(0.35),
+                    color: AppColors.primaryBlue.withValues(alpha: 0.35),
                     blurRadius: 12,
                     offset: const Offset(0, 6),
                   ),
@@ -49,7 +49,7 @@ class CustomButton extends StatelessWidget {
           foregroundColor: textColor ?? AppColors.white,
           padding: const EdgeInsets.symmetric(vertical: 18),
           elevation: useGradient ? 0 : 2,
-          shadowColor: AppColors.primaryBlue.withOpacity(0.3),
+          shadowColor: AppColors.primaryBlue.withValues(alpha: 0.3),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppDimensions.radiusL),
           ),

@@ -71,7 +71,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
                     ),
@@ -141,7 +141,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -158,7 +158,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         subtitle: Text(subtitle, style: const TextStyle(color: AppColors.grey)),
         value: value,
         onChanged: onChanged,
-        activeColor: AppColors.primaryBlue,
+        activeThumbColor: AppColors.primaryBlue,
       ),
     );
   }

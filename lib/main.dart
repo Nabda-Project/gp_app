@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -16,7 +17,7 @@ void main() async {
   try {
     await StorageService.init();
   } catch (e) {
-    print("StorageService Init Failed: $e");
+    log("StorageService Init Failed: $e", name: 'Main');
   }
   runApp(const GPApp());
 }

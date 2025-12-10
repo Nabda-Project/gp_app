@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -45,22 +46,22 @@ class AuthService {
   /// Sign in with Google
   static Future<UserCredential?> signInWithGoogle() async {
     try {
-      print("Starting Google Sign-In...");
+      log("Starting Google Sign-In...", name: 'AuthService');
       // Trigger the Google Sign-In flow
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
       if (googleUser == null) {
         // User cancelled the sign-in
-        print("Google Sign-In cancelled by user.");
+        log("Google Sign-In cancelled by user.", name: 'AuthService');
         return null;
       }
-      print("Google Account obtained: ${googleUser.email}");
+      log("Google Account obtained: ${googleUser.email}", name: 'AuthService');
 
       // Obtain the auth details from the request
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
 
-      print("Google Auth tokens obtained.");
+      log("Google Auth tokens obtained.", name: 'AuthService');
 
       // Create a new credential
       final OAuthCredential credential = GoogleAuthProvider.credential(
@@ -69,12 +70,18 @@ class AuthService {
       );
 
       // Sign in to Firebase with the Google credential
-      print("Signing in to Firebase with Google credential...");
+      log(
+        "Signing in to Firebase with Google credential...",
+        name: 'AuthService',
+      );
       final userCred = await _auth.signInWithCredential(credential);
-      print("Firebase Sign-In successful: ${userCred.user?.uid}");
+      log(
+        "Firebase Sign-In successful: ${userCred.user?.uid}",
+        name: 'AuthService',
+      );
       return userCred;
     } catch (e) {
-      print("Google Sign-In Error: $e");
+      log("Google Sign-In Error: $e", name: 'AuthService', error: e);
       rethrow;
     }
   }
@@ -84,19 +91,19 @@ class AuthService {
   /// Sign out from all providers
   /// Sign out from all providers
   static Future<void> signOut() async {
-    print("DEBUG: Executing signOut...");
+    log("Executing signOut...", name: 'AuthService');
     try {
       await _googleSignIn.signOut();
-      print("DEBUG: Google Sign-Out successful.");
+      log("Google Sign-Out successful.", name: 'AuthService');
     } catch (e) {
-      print("DEBUG: Google Sign-Out error (ignoring): $e");
+      log("Google Sign-Out error (ignoring): $e", name: 'AuthService');
     }
 
     try {
       await _auth.signOut();
-      print("DEBUG: Firebase Sign-Out successful.");
+      log("Firebase Sign-Out successful.", name: 'AuthService');
     } catch (e) {
-      print("DEBUG: Firebase Sign-Out error: $e");
+      log("Firebase Sign-Out error: $e", name: 'AuthService', error: e);
     }
   }
 }

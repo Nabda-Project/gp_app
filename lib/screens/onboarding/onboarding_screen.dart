@@ -3,6 +3,7 @@ import '../../utils/constants.dart';
 import '../../utils/app_localizations.dart';
 import '../../widgets/reusable/custom_button.dart';
 import '../../widgets/animations/fade_slide_transition.dart';
+import '../../widgets/reusable/app_logo.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -64,7 +65,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         height: 200,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: Colors.white.withOpacity(0.1),
+                          color: Colors.white.withValues(alpha: 0.1),
                         ),
                       ),
                     ),
@@ -80,28 +81,30 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         height: 120,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: Colors.white.withOpacity(0.08),
+                          color: Colors.white.withValues(alpha: 0.08),
                         ),
                       ),
                     ),
                   ),
-                  // Animated Main Icon
+                  // Animated Main Icon (Hero)
                   FadeSlideTransition(
                     delay: const Duration(milliseconds: 100),
                     duration: const Duration(milliseconds: 800),
-                    beginOffset: const Offset(0, -0.2),
+                    beginOffset: const Offset(
+                      0,
+                      0.2,
+                    ), // Start slightly lower to match flight
                     child: ScaleTransition(
                       scale: _iconScaleAnimation,
-                      child: Container(
-                        padding: const EdgeInsets.all(30),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withOpacity(0.2),
-                        ),
-                        child: const Icon(
-                          Icons.medical_services_outlined,
-                          size: 80,
-                          color: Colors.white,
+                      child: Hero(
+                        tag: 'app_logo',
+                        child: Container(
+                          padding: const EdgeInsets.all(30),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white.withValues(alpha: 0.2),
+                          ),
+                          child: const AppLogo(size: 80),
                         ),
                       ),
                     ),
@@ -114,9 +117,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           Expanded(
             flex: 4,
             child: FadeSlideTransition(
-              delay: const Duration(milliseconds: 300),
-              duration: const Duration(milliseconds: 600),
-              beginOffset: const Offset(0, 0.15),
+              delay: const Duration(milliseconds: 800), // Wait for Hero
+              duration: const Duration(milliseconds: 800),
+              beginOffset: const Offset(0, 0.3), // Slide from further down
               child: Container(
                 width: double.infinity,
                 decoration: const BoxDecoration(

@@ -44,13 +44,13 @@ class PatientCard extends StatelessWidget {
         border:
             status == 'Critical'
                 ? Border.all(
-                  color: AppColors.error.withOpacity(0.3),
+                  color: AppColors.error.withValues(alpha: 0.3),
                   width: 1.5,
                 )
                 : null,
         boxShadow: [
           BoxShadow(
-            color: _statusColor.withOpacity(0.1),
+            color: _statusColor.withValues(alpha: 0.1),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -70,7 +70,9 @@ class PatientCard extends StatelessWidget {
                   children: [
                     CircleAvatar(
                       radius: 26,
-                      backgroundColor: AppColors.primaryBlue.withOpacity(0.1),
+                      backgroundColor: AppColors.primaryBlue.withValues(
+                        alpha: 0.1,
+                      ),
                       child: Text(
                         name.isNotEmpty ? name[0].toUpperCase() : '?',
                         style: const TextStyle(
@@ -137,7 +139,7 @@ class PatientCard extends StatelessWidget {
                         icon: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: AppColors.primaryBlue.withOpacity(0.1),
+                            color: AppColors.primaryBlue.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(
@@ -191,7 +193,7 @@ class PatientCard extends StatelessWidget {
         TextSpan(
           text: text.substring(index, index + query.length),
           style: TextStyle(
-            backgroundColor: AppColors.primaryBlue.withOpacity(0.2),
+            backgroundColor: AppColors.primaryBlue.withValues(alpha: 0.2),
             color: AppColors.primaryBlue,
             fontWeight: FontWeight.bold,
           ),

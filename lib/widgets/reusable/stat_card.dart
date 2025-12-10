@@ -25,7 +25,7 @@ class StatCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -40,8 +40,8 @@ class StatCard extends StatelessWidget {
             child: Icon(
               icon,
               size: 70, // Increased size slightly
-              color: color.withOpacity(
-                0.04,
+              color: color.withValues(
+                alpha: 0.04,
               ), // user said: "reduce opacity of logo", "increase font", "make bold".
               // Let's go with 0.04 to be safe.
             ),
@@ -51,7 +51,7 @@ class StatCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(

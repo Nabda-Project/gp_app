@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
 
@@ -10,7 +11,7 @@ class FirestoreService {
     try {
       await _firestore.collection(_collection).doc(user.id).set(user.toMap());
     } catch (e) {
-      print("Error saving user to Firestore: $e");
+      log("Error saving user to Firestore: $e", name: 'FirestoreService');
       rethrow;
     }
   }
@@ -24,7 +25,7 @@ class FirestoreService {
       }
       return null;
     } catch (e) {
-      print("Error getting user from Firestore: $e");
+      log("Error getting user from Firestore: $e", name: 'FirestoreService');
       return null;
     }
   }
@@ -35,7 +36,7 @@ class FirestoreService {
       final doc = await _firestore.collection(_collection).doc(uid).get();
       return doc.exists;
     } catch (e) {
-      print("Error checking user existence: $e");
+      log("Error checking user existence: $e", name: 'FirestoreService');
       return false;
     }
   }

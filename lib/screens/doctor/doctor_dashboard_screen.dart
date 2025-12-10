@@ -166,7 +166,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                         width: 200,
                         height: 200,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.08),
+                          color: Colors.white.withValues(alpha: 0.08),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -178,7 +178,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                         width: 140,
                         height: 140,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.08),
+                          color: Colors.white.withValues(alpha: 0.08),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -196,7 +196,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                                 Container(
                                   padding: const EdgeInsets.all(3),
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.2),
+                                    color: Colors.white.withValues(alpha: 0.2),
                                     shape: BoxShape.circle,
                                   ),
                                   child: const CircleAvatar(
@@ -221,7 +221,9 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                                           context,
                                         )!.get('hello'),
                                         style: TextStyle(
-                                          color: Colors.white.withOpacity(0.9),
+                                          color: Colors.white.withValues(
+                                            alpha: 0.9,
+                                          ),
                                           fontSize: 14,
                                         ),
                                       ),
@@ -241,7 +243,9 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                                           vertical: 3,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: Colors.white.withOpacity(0.15),
+                                          color: Colors.white.withValues(
+                                            alpha: 0.15,
+                                          ),
                                           borderRadius: BorderRadius.circular(
                                             12,
                                           ),
@@ -263,7 +267,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                                 ),
                                 Container(
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.15),
+                                    color: Colors.white.withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: IconButton(
@@ -467,7 +471,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 10,
                       offset: const Offset(0, 2),
                     ),
@@ -518,7 +522,9 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                             Icon(
                               Icons.search_off,
                               size: 64,
-                              color: AppColors.grey.withOpacity(0.5),
+                              color: AppColors.primaryBlue.withValues(
+                                alpha: 0.1,
+                              ),
                             ),
                             const SizedBox(height: 16),
                             Text(

@@ -109,7 +109,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
+                              color: Colors.black.withValues(alpha: 0.05),
                               blurRadius: 4,
                               offset: const Offset(0, 2),
                             ),
@@ -120,7 +120,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             backgroundColor:
                                 isRead
                                     ? AppColors.lightGrey
-                                    : AppColors.primaryBlue.withOpacity(0.2),
+                                    : AppColors.primaryBlue.withValues(
+                                      alpha: 0.2,
+                                    ),
                             child: Icon(
                               Icons.notifications,
                               color:

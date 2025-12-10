@@ -19,7 +19,7 @@ class AppColors {
   // Card shadow
   static List<BoxShadow> get cardShadow => [
     BoxShadow(
-      color: primaryBlue.withOpacity(0.08),
+      color: primaryBlue.withValues(alpha: 0.08),
       blurRadius: 20,
       offset: const Offset(0, 8),
     ),

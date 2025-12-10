@@ -70,8 +70,8 @@ class LogoutDialog extends StatelessWidget {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    AppColors.error.withOpacity(0.1),
-                    AppColors.error.withOpacity(0.05),
+                    AppColors.error.withValues(alpha: 0.1),
+                    AppColors.error.withValues(alpha: 0.05),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -116,7 +116,7 @@ class LogoutDialog extends StatelessWidget {
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       side: BorderSide(
-                        color: AppColors.grey.withOpacity(0.3),
+                        color: AppColors.grey.withValues(alpha: 0.3),
                         width: 1.5,
                       ),
                       shape: RoundedRectangleBorder(

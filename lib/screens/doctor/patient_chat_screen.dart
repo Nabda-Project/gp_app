@@ -70,7 +70,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
           children: [
             CircleAvatar(
               radius: 18,
-              backgroundColor: AppColors.primaryBlue.withOpacity(0.1),
+              backgroundColor: AppColors.primaryBlue.withValues(alpha: 0.1),
               child: Text(
                 patient['name'].toString().substring(0, 1),
                 style: const TextStyle(
@@ -114,7 +114,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
               color: AppColors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, -4),
                 ),
@@ -176,7 +176,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
           if (!isDoctor) ...[
             CircleAvatar(
               radius: 16,
-              backgroundColor: AppColors.grey.withOpacity(0.2),
+              backgroundColor: AppColors.grey.withValues(alpha: 0.2),
               child: const Icon(Icons.person, size: 18, color: AppColors.grey),
             ),
             const SizedBox(width: 8),
@@ -197,7 +197,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
@@ -219,7 +219,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
                     style: TextStyle(
                       color:
                           isDoctor
-                              ? Colors.white.withOpacity(0.7)
+                              ? Colors.white.withValues(alpha: 0.7)
                               : AppColors.grey,
                       fontSize: 10,
                     ),
@@ -232,7 +232,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
             const SizedBox(width: 8),
             CircleAvatar(
               radius: 16,
-              backgroundColor: AppColors.primaryBlue.withOpacity(0.1),
+              backgroundColor: AppColors.primaryBlue.withValues(alpha: 0.1),
               child: const Icon(
                 Icons.medical_services,
                 size: 18,

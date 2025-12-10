@@ -180,7 +180,7 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -193,7 +193,7 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen>
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: (condition['color'] as Color).withOpacity(0.1),
+                color: (condition['color'] as Color).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
@@ -224,7 +224,7 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen>
                   Text(
                     condition['doctor'],
                     style: TextStyle(
-                      color: AppColors.primaryBlue.withOpacity(0.8),
+                      color: AppColors.primaryBlue.withValues(alpha: 0.8),
                       fontSize: 13,
                     ),
                   ),
@@ -262,13 +262,13 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen>
         border: Border.all(
           color:
               isActive
-                  ? AppColors.accentTeal.withOpacity(0.3)
+                  ? AppColors.accentTeal.withValues(alpha: 0.3)
                   : Colors.transparent,
           width: 2,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -287,7 +287,7 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen>
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: AppColors.primaryBlue.withOpacity(0.1),
+                        color: AppColors.primaryBlue.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: const Icon(
@@ -370,7 +370,7 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen>
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -383,7 +383,9 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen>
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: (isSevere ? Colors.red : Colors.orange).withOpacity(0.1),
+                color: (isSevere ? Colors.red : Colors.orange).withValues(
+                  alpha: 0.1,
+                ),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
@@ -416,8 +418,8 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen>
                         decoration: BoxDecoration(
                           color:
                               isSevere
-                                  ? Colors.red.withOpacity(0.1)
-                                  : Colors.orange.withOpacity(0.1),
+                                  ? Colors.red.withValues(alpha: 0.1)
+                                  : Colors.orange.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -467,7 +469,7 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -544,7 +546,7 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen>
                 Text(
                   procedure['doctor'],
                   style: TextStyle(
-                    color: AppColors.primaryBlue.withOpacity(0.8),
+                    color: AppColors.primaryBlue.withValues(alpha: 0.8),
                     fontSize: 13,
                   ),
                 ),
@@ -576,7 +578,7 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: chipColor.withOpacity(0.1),
+        color: chipColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(

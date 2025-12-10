@@ -123,18 +123,18 @@ class _AnimatedToastState extends State<AnimatedToast>
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: typeColor.withOpacity(0.2),
+                      color: typeColor.withValues(alpha: 0.2),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 4,
                       offset: const Offset(0, 1),
                     ),
                   ],
                   border: Border.all(
-                    color: typeColor.withOpacity(0.1),
+                    color: typeColor.withValues(alpha: 0.1),
                     width: 1,
                   ),
                 ),
@@ -143,7 +143,7 @@ class _AnimatedToastState extends State<AnimatedToast>
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: typeColor.withOpacity(0.1),
+                        color: typeColor.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(_getTypeIcon(), color: typeColor, size: 24),
@@ -168,9 +168,11 @@ class _AnimatedToastState extends State<AnimatedToast>
                             widget.message,
                             style: TextStyle(
                               fontSize: 12,
-                              color: Theme.of(
-                                context,
-                              ).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                              color: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.color
+                                  ?.withValues(alpha: 0.7),
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
@@ -184,7 +186,7 @@ class _AnimatedToastState extends State<AnimatedToast>
                         size: 20,
                         color: Theme.of(
                           context,
-                        ).textTheme.bodyMedium?.color?.withOpacity(0.5),
+                        ).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
                       ),
                       onPressed: _dismiss,
                     ),

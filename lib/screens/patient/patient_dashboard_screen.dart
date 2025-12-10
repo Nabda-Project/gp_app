@@ -38,7 +38,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final List<Widget> _pages = [
+    final List<Widget> pages = [
       _buildDashboardContent(), // 0: Dashboard
       const SizedBox(), // 1: Doctor Chat (Handled via pushNamed)
       const ProfileScreen(), // 2: Profile
@@ -49,10 +49,10 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
       body:
           _currentIndex ==
                   2 // Profile is now index 2
-              ? _pages[2]
+              ? pages[2]
               : _currentIndex ==
                   1 // Doctor Chat is now index 1
-              ? _pages[1]
+              ? pages[1]
               : _buildDashboardContent(), // Default to dashboard (index 0)
       floatingActionButton: FloatingActionButton(
         onPressed: () {
@@ -235,7 +235,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
         borderRadius: BorderRadius.circular(AppDimensions.radiusM),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
