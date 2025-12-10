@@ -3,8 +3,8 @@ import '../../utils/constants.dart';
 import '../../models/user_model.dart';
 import '../../utils/app_localizations.dart';
 import '../../services/storage_service.dart';
-import '../../services/auth_service.dart';
 import '../../widgets/reusable/decorated_background.dart';
+import '../../widgets/reusable/logout_dialog.dart';
 import '../../widgets/animations/fade_slide_transition.dart';
 import '../../widgets/animations/animated_list_item.dart';
 
@@ -104,66 +104,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   },
                 ),
               ),
-              AnimatedListItem(
-                index: 1,
-                child: _buildProfileOption(
-                  icon: Icons.history,
-                  title: AppLocalizations.of(context)!.get('medicalHistory'),
-                  onTap: () {
-                    Navigator.pushNamed(context, '/medical_history');
-                  },
+              // Medical History - only visible for patients, not doctors
+              if (_currentUser?.role != 'Doctor')
+                AnimatedListItem(
+                  index: 1,
+                  child: _buildProfileOption(
+                    icon: Icons.history,
+                    title: AppLocalizations.of(context)!.get('medicalHistory'),
+                    onTap: () {
+                      Navigator.pushNamed(context, '/medical_history');
+                    },
+                  ),
                 ),
-              ),
               const SizedBox(height: AppDimensions.paddingL),
               AnimatedListItem(
                 index: 2,
                 child: _buildProfileOption(
                   icon: Icons.logout,
                   title: AppLocalizations.of(context)!.get('logout'),
-                  onTap: () {
-                    showDialog(
-                      context: context,
-                      builder:
-                          (context) => AlertDialog(
-                            title: Text(
-                              AppLocalizations.of(context)!.get('logout'),
-                            ),
-                            content: Text(
-                              AppLocalizations.of(
-                                context,
-                              )!.get('logoutConfirm'),
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: Text(
-                                  AppLocalizations.of(context)!.get('cancel'),
-                                ),
-                              ),
-                              TextButton(
-                                onPressed: () async {
-                                  Navigator.pop(context);
-                                  await AuthService.signOut();
-                                  await StorageService.logout();
-                                  if (context.mounted) {
-                                    Navigator.pushNamedAndRemoveUntil(
-                                      context,
-                                      '/onboarding',
-                                      (route) => false,
-                                    );
-                                  }
-                                },
-                                child: Text(
-                                  AppLocalizations.of(context)!.get('logout'),
-                                  style: const TextStyle(
-                                    color: AppColors.error,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                    );
-                  },
+                  onTap: () => LogoutDialog.show(context),
                 ),
               ),
             ],

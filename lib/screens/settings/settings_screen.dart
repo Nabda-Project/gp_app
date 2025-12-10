@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import '../../utils/constants.dart';
 import '../../models/settings_model.dart';
 import '../../services/storage_service.dart';
-import '../../services/auth_service.dart';
 import '../../widgets/reusable/custom_button.dart';
+import '../../widgets/reusable/logout_dialog.dart';
 import '../../utils/app_localizations.dart';
 import '../../widgets/animations/fade_slide_transition.dart';
 import '../../widgets/animations/animated_list_item.dart';
@@ -29,14 +29,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _settings.enableNotifications = value;
     });
     StorageService.saveSettings(_settings);
-  }
-
-  void _handleLogout() async {
-    await AuthService.signOut();
-    await StorageService.logout();
-    if (mounted) {
-      Navigator.pushNamedAndRemoveUntil(context, '/auth', (route) => false);
-    }
   }
 
   @override
@@ -125,38 +117,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               delay: const Duration(milliseconds: 300),
               child: CustomButton(
                 text: AppLocalizations.of(context)!.get('logout'),
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder:
-                        (context) => AlertDialog(
-                          title: Text(
-                            AppLocalizations.of(context)!.get('logout'),
-                          ),
-                          content: Text(
-                            AppLocalizations.of(context)!.get('logoutConfirm'),
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: Text(
-                                AppLocalizations.of(context)!.get('cancel'),
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                Navigator.pop(context); // Close dialog
-                                _handleLogout();
-                              },
-                              child: Text(
-                                AppLocalizations.of(context)!.get('logout'),
-                                style: const TextStyle(color: AppColors.error),
-                              ),
-                            ),
-                          ],
-                        ),
-                  );
-                },
+                onPressed: () => LogoutDialog.show(context),
                 backgroundColor: AppColors.error,
                 textColor: AppColors.white,
               ),

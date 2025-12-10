@@ -216,76 +216,200 @@ class _AuthScreenState extends State<AuthScreen>
     showDialog(
       context: context,
       builder:
-          (context) => AlertDialog(
+          (dialogContext) => Dialog(
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(20),
             ),
-            title: Text(AppLocalizations.of(context)!.get('resetPassword')),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(AppLocalizations.of(context)!.get('resetPasswordDesc')),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(
-                    labelText: AppLocalizations.of(
-                      context,
-                    )!.get('emailAddress'),
-                    prefixIcon: const Icon(
-                      Icons.email,
+            elevation: 16,
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Icon Container with gradient background
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppColors.primaryBlue.withOpacity(0.15),
+                          AppColors.primaryBlue.withOpacity(0.05),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.lock_reset_rounded,
+                      size: 40,
                       color: AppColors.primaryBlue,
                     ),
-                    filled: true,
-                    fillColor: const Color(0xFFF5F7FA),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
+                  ),
+                  const SizedBox(height: 20),
+                  // Title
+                  Text(
+                    AppLocalizations.of(dialogContext)!.get('resetPassword'),
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.darkBlue,
                     ),
                   ),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(AppLocalizations.of(context)!.get('cancel')),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  final email = emailController.text.trim();
-                  if (email.isEmpty || !email.contains('@')) {
-                    _showError(AppLocalizations.of(context)!.get('validEmail'));
-                    return;
-                  }
-                  Navigator.pop(context);
-                  _setLoading(true);
-                  try {
-                    await AuthService.sendPasswordResetEmail(email);
-                    _showSuccess(
-                      'Password reset email sent! Check your inbox.',
-                    );
-                  } on FirebaseAuthException catch (e) {
-                    _showError(_getAuthErrorMessage(e.code));
-                  } catch (e) {
-                    _showError('Failed to send reset email: $e');
-                  } finally {
-                    _setLoading(false);
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryBlue,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                  const SizedBox(height: 12),
+                  // Description
+                  Text(
+                    AppLocalizations.of(
+                      dialogContext,
+                    )!.get('resetPasswordDesc'),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.grey,
+                      height: 1.4,
+                    ),
                   ),
-                ),
-                child: Text(
-                  AppLocalizations.of(context)!.get('sendResetLink'),
-                  style: const TextStyle(color: Colors.white),
-                ),
+                  const SizedBox(height: 24),
+                  // Email TextField
+                  TextField(
+                    controller: emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: InputDecoration(
+                      labelText: AppLocalizations.of(
+                        dialogContext,
+                      )!.get('emailAddress'),
+                      labelStyle: TextStyle(color: AppColors.grey),
+                      prefixIcon: Container(
+                        margin: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryBlue.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.email_outlined,
+                          color: AppColors.primaryBlue,
+                          size: 20,
+                        ),
+                      ),
+                      filled: true,
+                      fillColor: const Color(0xFFF5F7FA),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                          color: AppColors.primaryBlue,
+                          width: 1.5,
+                        ),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 16,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  // Buttons Row
+                  Row(
+                    children: [
+                      // Cancel Button
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(dialogContext),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            side: BorderSide(
+                              color: AppColors.grey.withOpacity(0.3),
+                              width: 1.5,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Text(
+                            AppLocalizations.of(dialogContext)!.get('cancel'),
+                            style: const TextStyle(
+                              color: AppColors.darkBlue,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      // Send Button
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: AppColors.primaryGradient,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.primaryBlue.withOpacity(0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              final email = emailController.text.trim();
+                              if (email.isEmpty || !email.contains('@')) {
+                                _showError(
+                                  AppLocalizations.of(
+                                    dialogContext,
+                                  )!.get('validEmail'),
+                                );
+                                return;
+                              }
+                              Navigator.pop(dialogContext);
+                              _setLoading(true);
+                              try {
+                                await AuthService.sendPasswordResetEmail(email);
+                                _showSuccess(
+                                  'Password reset email sent! Check your inbox.',
+                                );
+                              } on FirebaseAuthException catch (e) {
+                                _showError(_getAuthErrorMessage(e.code));
+                              } catch (e) {
+                                _showError('Failed to send reset email: $e');
+                              } finally {
+                                _setLoading(false);
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              shadowColor: Colors.transparent,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Text(
+                              AppLocalizations.of(
+                                dialogContext,
+                              )!.get('sendResetLink'),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
     );
   }
