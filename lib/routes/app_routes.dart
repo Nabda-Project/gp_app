@@ -9,10 +9,12 @@ import '../screens/patient/chatbot_screen.dart';
 import '../screens/notifications/notifications_screen.dart';
 import '../screens/patient/doctor_chat_screen.dart';
 import '../screens/patient/follow_ups_screen.dart';
+import '../screens/patient/medical_history_screen.dart';
 import '../screens/doctor/doctor_dashboard_screen.dart';
 import '../screens/doctor/patient_detail_screen.dart';
 import '../screens/doctor/patient_chat_screen.dart';
 import '../screens/role_selection/role_selection_screen.dart';
+import 'app_page_route.dart';
 
 class AppRoutes {
   static const String splash = '/';
@@ -30,22 +32,69 @@ class AppRoutes {
   static const String patientDetail = '/patient_detail';
   static const String patientChat = '/patient_chat';
   static const String roleSelection = '/role_selection';
+  static const String medicalHistory = '/medical_history';
 
+  // Keep routes map for initial route
   static Map<String, WidgetBuilder> get routes => {
     splash: (context) => const SplashScreen(),
-    onboarding: (context) => const OnboardingScreen(),
-    auth: (context) => const AuthScreen(),
-    patientDashboard: (context) => const PatientDashboardScreen(),
-    chatbot: (context) => const ChatbotScreen(),
-    notifications: (context) => const NotificationsScreen(),
-    doctorChat: (context) => const DoctorChatScreen(),
-    followUps: (context) => const FollowUpsScreen(),
-    profile: (context) => const ProfileScreen(),
-    settings: (context) => const SettingsScreen(),
-    // Doctor screens
-    doctorDashboard: (context) => const DoctorDashboardScreen(),
-    patientDetail: (context) => const PatientDetailScreen(),
-    patientChat: (context) => const PatientChatScreen(),
-    roleSelection: (context) => const RoleSelectionScreen(),
   };
+
+  // Use onGenerateRoute for custom page transitions
+  static Route<dynamic>? onGenerateRoute(RouteSettings settings) {
+    Widget? page;
+
+    switch (settings.name) {
+      case splash:
+        page = const SplashScreen();
+        break;
+      case onboarding:
+        page = const OnboardingScreen();
+        break;
+      case auth:
+        page = const AuthScreen();
+        break;
+      case patientDashboard:
+        page = const PatientDashboardScreen();
+        break;
+      case chatbot:
+        page = const ChatbotScreen();
+        break;
+      case notifications:
+        page = const NotificationsScreen();
+        break;
+      case doctorChat:
+        page = const DoctorChatScreen();
+        break;
+      case followUps:
+        page = const FollowUpsScreen();
+        break;
+      case profile:
+        page = const ProfileScreen();
+        break;
+      case AppRoutes.settings:
+        page = const SettingsScreen();
+        break;
+      case doctorDashboard:
+        page = const DoctorDashboardScreen();
+        break;
+      case patientDetail:
+        page = const PatientDetailScreen();
+        break;
+      case patientChat:
+        page = const PatientChatScreen();
+        break;
+      case roleSelection:
+        page = const RoleSelectionScreen();
+        break;
+      case medicalHistory:
+        page = const MedicalHistoryScreen();
+        break;
+    }
+
+    if (page != null) {
+      return AppPageRoute(page: page);
+    }
+
+    return null;
+  }
 }

@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'services/storage_service.dart';
+import 'services/notification_service.dart';
 import 'models/settings_model.dart';
 import 'utils/app_localizations.dart';
 import 'theme/app_theme.dart';
@@ -32,6 +33,7 @@ class GPApp extends StatelessWidget {
         final settings = box.get('appSettings') ?? SettingsModel();
 
         return MaterialApp(
+          navigatorKey: NotificationService.navigatorKey,
           title: 'HealthSync',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
@@ -56,6 +58,7 @@ class GPApp extends StatelessWidget {
           },
           initialRoute: AppRoutes.splash,
           routes: AppRoutes.routes,
+          onGenerateRoute: AppRoutes.onGenerateRoute,
         );
       },
     );

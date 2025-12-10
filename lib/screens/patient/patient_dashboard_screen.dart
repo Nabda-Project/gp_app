@@ -9,6 +9,9 @@ import '../../widgets/reusable/section_title.dart';
 import '../../utils/app_localizations.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../widgets/reusable/decorated_background.dart';
+import '../../widgets/animations/fade_slide_transition.dart';
+import '../../widgets/animations/animated_list_item.dart';
+import '../../widgets/reusable/custom_bottom_nav.dart';
 
 class PatientDashboardScreen extends StatefulWidget {
   const PatientDashboardScreen({super.key});
@@ -58,7 +61,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
         backgroundColor: AppColors.primaryBlue,
         child: const FaIcon(FontAwesomeIcons.robot, color: Colors.white),
       ),
-      bottomNavigationBar: BottomNavigationBar(
+      bottomNavigationBar: CustomBottomNavBar(
         currentIndex: _currentIndex,
         onTap: (index) {
           if (index == 1) {
@@ -69,23 +72,20 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
             });
           }
         },
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: AppColors.primaryBlue,
-        unselectedItemColor: AppColors.grey,
         items: [
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.dashboard_outlined),
-            activeIcon: const Icon(Icons.dashboard),
+          CustomNavItem(
+            icon: Icons.dashboard_outlined,
+            activeIcon: Icons.dashboard,
             label: AppLocalizations.of(context)!.get('dashboard'),
           ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.message_outlined),
-            activeIcon: const Icon(Icons.message),
+          CustomNavItem(
+            icon: Icons.message_outlined,
+            activeIcon: Icons.message,
             label: AppLocalizations.of(context)!.get('chat'),
           ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.person_outline),
-            activeIcon: const Icon(Icons.person),
+          CustomNavItem(
+            icon: Icons.person_outline,
+            activeIcon: Icons.person,
             label: AppLocalizations.of(context)!.get('profile'),
           ),
         ],
@@ -143,14 +143,26 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              StatusCard(
-                title: AppLocalizations.of(context)!.get('currentHealthStatus'),
-                status: AppLocalizations.of(context)!.get('normal'),
-                isHealthy: true,
+              // Animated Status Card
+              FadeSlideTransition(
+                delay: const Duration(milliseconds: 100),
+                child: StatusCard(
+                  title: AppLocalizations.of(
+                    context,
+                  )!.get('currentHealthStatus'),
+                  status: AppLocalizations.of(context)!.get('normal'),
+                  isHealthy: true,
+                ),
               ),
               const SizedBox(height: AppDimensions.paddingL),
-              SectionTitle(title: AppLocalizations.of(context)!.get('vitals')),
+              FadeSlideTransition(
+                delay: const Duration(milliseconds: 200),
+                child: SectionTitle(
+                  title: AppLocalizations.of(context)!.get('vitals'),
+                ),
+              ),
               const SizedBox(height: AppDimensions.paddingM),
+              // Animated Vitals Grid
               GridView.count(
                 crossAxisCount: 2,
                 shrinkWrap: true,
@@ -159,38 +171,54 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                 mainAxisSpacing: AppDimensions.paddingM,
                 childAspectRatio: 1.5,
                 children: [
-                  VitalCard(
-                    label: AppLocalizations.of(context)!.get('heartRate'),
-                    value: "72",
-                    unit: "bpm",
-                    icon: Icons.favorite,
-                    color: Colors.redAccent,
+                  AnimatedListItem(
+                    index: 0,
+                    child: VitalCard(
+                      label: AppLocalizations.of(context)!.get('heartRate'),
+                      value: "72",
+                      unit: "bpm",
+                      icon: Icons.favorite,
+                      color: Colors.redAccent,
+                    ),
                   ),
-                  VitalCard(
-                    label: AppLocalizations.of(context)!.get('bloodOxygen'),
-                    value: "98",
-                    unit: "%",
-                    icon: Icons.water_drop,
-                    color: Colors.lightBlue,
+                  AnimatedListItem(
+                    index: 1,
+                    child: VitalCard(
+                      label: AppLocalizations.of(context)!.get('bloodOxygen'),
+                      value: "98",
+                      unit: "%",
+                      icon: Icons.water_drop,
+                      color: Colors.lightBlue,
+                    ),
                   ),
-                  VitalCard(
-                    label: AppLocalizations.of(context)!.get('bloodPressure'),
-                    value: "120/80",
-                    unit: "mmHg",
-                    icon: Icons.speed,
-                    color: Colors.orange,
+                  AnimatedListItem(
+                    index: 2,
+                    child: VitalCard(
+                      label: AppLocalizations.of(context)!.get('bloodPressure'),
+                      value: "120/80",
+                      unit: "mmHg",
+                      icon: Icons.speed,
+                      color: Colors.orange,
+                    ),
                   ),
-                  VitalCard(
-                    label: AppLocalizations.of(context)!.get('nextFollowUp'),
-                    value: "Oct 15",
-                    unit: "",
-                    icon: Icons.calendar_today,
-                    color: AppColors.primaryBlue,
+                  AnimatedListItem(
+                    index: 3,
+                    child: VitalCard(
+                      label: AppLocalizations.of(context)!.get('nextFollowUp'),
+                      value: "Oct 15",
+                      unit: "",
+                      icon: Icons.calendar_today,
+                      color: AppColors.primaryBlue,
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: AppDimensions.paddingL),
-              _buildFollowUpCard(),
+              // Animated Follow-up Card
+              FadeSlideTransition(
+                delay: const Duration(milliseconds: 500),
+                child: _buildFollowUpCard(),
+              ),
             ],
           ),
         ),
@@ -238,14 +266,16 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
             ],
           ),
           const SizedBox(height: AppDimensions.paddingS),
-          const ListTile(
+          ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: CircleAvatar(
+            leading: const CircleAvatar(
               backgroundColor: AppColors.lightGrey,
               child: Icon(Icons.calendar_today, color: AppColors.primaryBlue),
             ),
-            title: Text("Dr. Sarah Johnson"),
-            subtitle: Text("Tue, Dec 12 • 10:00 AM"),
+            title: Text(AppLocalizations.of(context)!.get('drSarahJohnson')),
+            subtitle: Text(
+              AppLocalizations.of(context)!.get('appointmentDate'),
+            ),
           ),
         ],
       ),

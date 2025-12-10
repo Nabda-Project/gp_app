@@ -1,7 +1,15 @@
 import 'package:flutter/material.dart';
+import '../services/translation_service.dart';
 
+/// Enhanced localization class with Google Translate fallback
 class AppLocalizations {
   final Locale locale;
+
+  // Cache for dynamically translated strings
+  static final Map<String, Map<String, String>> _translationCache = {
+    'en': {},
+    'ar': {},
+  };
 
   AppLocalizations(this.locale);
 
@@ -12,6 +20,7 @@ class AppLocalizations {
   static const LocalizationsDelegate<AppLocalizations> delegate =
       _AppLocalizationsDelegate();
 
+  // Predefined translations
   static final Map<String, Map<String, String>> _localizedValues = {
     'en': {
       'appName': 'HealthSync',
@@ -32,6 +41,8 @@ class AppLocalizations {
       'medicalLicense': 'Medical License Number',
       'forgotPassword': 'Forgot Password?',
       'orLoginWith': 'Or login with',
+      'or': 'OR',
+      'continueWithGoogle': 'Continue with Google',
       'processingLogin': 'Processing Login...',
       'creatingAccount': 'Creating Account...',
       'patient': 'Patient',
@@ -45,6 +56,10 @@ class AppLocalizations {
       'passwordsNoMatch': 'Passwords do not match',
       'enterName': 'Please enter your full name',
       'enterLicense': 'Please enter license number',
+      'resetPassword': 'Reset Password',
+      'resetPasswordDesc':
+          'Enter your email address and we\'ll send you a link to reset your password.',
+      'sendResetLink': 'Send Reset Link',
 
       // Dashboard
       'hello': 'Hello',
@@ -55,12 +70,20 @@ class AppLocalizations {
       'myProfile': 'My Profile',
       'currentHealthStatus': 'Current Health Status',
       'normal': 'Normal',
+      'warning': 'Warning',
+      'critical': 'Critical',
       'heartRate': 'Heart Rate',
       'bloodOxygen': 'Blood Oxygen',
       'bloodPressure': 'BP (Est)',
       'nextFollowUp': 'Next Follow-up',
       'seeAll': 'See All',
       'vitalsComingSoon': 'Vitals History (Coming Soon)',
+      'view': 'View',
+
+      // Doctor Dashboard
+      'needAttention': 'Need Attention',
+      'criticalAlert': 'Critical Alert',
+      'patientsNeedAttention': 'patient(s) need immediate attention',
 
       // Profile & Settings
       'settings': 'Settings',
@@ -70,6 +93,7 @@ class AppLocalizations {
       'guestUser': 'Guest User',
       'noEmail': 'No Email',
       'notifications': 'Notifications',
+      'notificationsDesc': 'Receive alerts and reminders',
       'language': 'Language',
       'logout': 'Logout',
       'logoutConfirm': 'Are you sure you want to log out?',
@@ -98,10 +122,56 @@ class AppLocalizations {
       'typePatientMessage': 'Write a message to patient...',
       'vitalsHistory': 'Vitals History',
 
-      // Chatbots and reminders
+      // Medical History
+      'conditions': 'Conditions',
+      'medications': 'Medications',
+      'allergies': 'Allergies',
+      'procedures': 'Procedures',
+      'diagnosed': 'Diagnosed',
+      'dosage': 'Dosage',
+      'frequency': 'Frequency',
+      'since': 'Since',
+      'active': 'Active',
+      'ongoing': 'Ongoing',
+      'controlled': 'Controlled',
+      'seasonal': 'Seasonal',
+      'asNeeded': 'As needed',
+      'severe': 'Severe',
+      'mild': 'Mild',
+      'allergen': 'Allergen',
+      'reaction': 'Reaction',
+
+      // Chatbot
+      'assistantTitle': 'HealthSync Assistant',
+      'typeMessage': 'Describe your symptoms...',
+      'urgentWarning': 'Urgent: Call emergency services now',
+      'welcomeMessage':
+          'Hello! I\'m the HealthSync assistant. How can I help you today?',
+      'emergencyResponse':
+          'Based on your symptoms, this could be serious. Please refer to the emergency banner above.',
+      'generalResponse': 'I understand. Can you tell me more?',
+
+      // Toast Messages
+      'success': 'Success!',
+      'error': 'Error!',
+      'info': 'Info',
+
+      // Doctor/Patient Names (mock data)
+      'drSarahJohnson': 'Dr. Sarah Johnson',
+      'drAhmedHassan': 'Dr. Ahmed Hassan',
+      'drSaraMohamed': 'Dr. Sara Mohamed',
+      'drOmarAli': 'Dr. Omar Ali',
+      'drFatimaYoussef': 'Dr. Fatima Youssef',
+
+      // Appointments
+      'appointmentDate': 'Tue, Dec 12 • 10:00 AM',
+      'online': 'Online',
+      'inPerson': 'In Person',
+      'noData': 'No data available',
+      'passwordResetSent': 'Password reset email sent! Check your inbox.',
     },
     'ar': {
-      'appName': 'هالـث سينك',
+      'appName': 'هيلث سينك',
       // Onboarding
       'getStarted': 'ابدأ الآن',
       'onboardingTitle': 'صحتك بين يديك',
@@ -119,6 +189,8 @@ class AppLocalizations {
       'medicalLicense': 'رقم الترخيص الطبي',
       'forgotPassword': 'نسيت كلمة المرور؟',
       'orLoginWith': 'أو سجل الدخول بواسطة',
+      'or': 'أو',
+      'continueWithGoogle': 'المتابعة مع جوجل',
       'processingLogin': 'جاري تسجيل الدخول...',
       'creatingAccount': 'جاري إنشاء الحساب...',
       'patient': 'مريض',
@@ -132,6 +204,10 @@ class AppLocalizations {
       'passwordsNoMatch': 'كلمتا المرور غير متطابقتين',
       'enterName': 'يرجى إدخال الاسم الكامل',
       'enterLicense': 'يرجى إدخال رقم الترخيص',
+      'resetPassword': 'استعادة كلمة المرور',
+      'resetPasswordDesc':
+          'أدخل بريدك الإلكتروني وسنرسل لك رابطًا لإعادة تعيين كلمة المرور.',
+      'sendResetLink': 'إرسال رابط الاستعادة',
 
       // Dashboard
       'hello': 'مرحبًا',
@@ -142,12 +218,20 @@ class AppLocalizations {
       'myProfile': 'ملفي الشخصي',
       'currentHealthStatus': 'الحالة الصحية الحالية',
       'normal': 'طبيعي',
+      'warning': 'تحذير',
+      'critical': 'حرج',
       'heartRate': 'نبض القلب',
       'bloodOxygen': 'الأكسجين',
       'bloodPressure': 'ضغط الدم',
       'nextFollowUp': 'الموعد القادم',
       'seeAll': 'عرض الكل',
       'vitalsComingSoon': 'سجل العلامات الحيوية (قريباً)',
+      'view': 'عرض',
+
+      // Doctor Dashboard
+      'needAttention': 'تحتاج انتباه',
+      'criticalAlert': 'تنبيه حرج',
+      'patientsNeedAttention': 'مريض يحتاج اهتمامًا فوريًا',
 
       // Profile & Settings
       'settings': 'الإعدادات',
@@ -184,6 +268,26 @@ class AppLocalizations {
       'patientDetails': 'تفاصيل المريض',
       'lastUpdate': 'آخر تحديث',
       'typePatientMessage': 'اكتب رسالة للمريض...',
+      'vitalsHistory': 'سجل العلامات الحيوية',
+
+      // Medical History
+      'conditions': 'الحالات المرضية',
+      'medications': 'الأدوية',
+      'allergies': 'الحساسية',
+      'procedures': 'العمليات',
+      'diagnosed': 'تاريخ التشخيص',
+      'dosage': 'الجرعة',
+      'frequency': 'التكرار',
+      'since': 'منذ',
+      'active': 'نشط',
+      'ongoing': 'مستمر',
+      'controlled': 'تحت السيطرة',
+      'seasonal': 'موسمي',
+      'asNeeded': 'عند الحاجة',
+      'severe': 'شديد',
+      'mild': 'خفيف',
+      'allergen': 'المادة المسببة',
+      'reaction': 'رد الفعل',
 
       // Chatbot
       'assistantTitle': 'مساعد هيلث سينك',
@@ -195,14 +299,78 @@ class AppLocalizations {
           'بناءً على أعراضك، قد يكون هذا خطيراً. يرجى الرجوع إلى لافتة الطوارئ أعلاه.',
       'generalResponse': 'أفهم ذلك. هل يمكنك إخباري بالمزيد؟',
 
-      // Vitals History
-      'vitalsHistory': 'سجل العلامات الحيوية',
-      'noVitalsData': 'لا توجد بيانات للعلامات الحيوية.',
+      // Follow-ups
+      'upcomingFollowUps': 'المواعيد القادمة',
+      'noFollowUps': 'لا توجد مواعيد قادمة',
+
+      // Toast Messages
+      'success': 'تم بنجاح!',
+      'error': 'خطأ!',
+      'info': 'معلومة',
+
+      // Doctor/Patient Names (mock data)
+      'drSarahJohnson': 'د. سارة جونسون',
+      'drAhmedHassan': 'د. أحمد حسن',
+      'drSaraMohamed': 'د. سارة محمد',
+      'drOmarAli': 'د. عمر علي',
+      'drFatimaYoussef': 'د. فاطمة يوسف',
+
+      // Appointments
+      'appointmentDate': 'الثلاثاء، 12 ديسمبر • 10:00 ص',
+      'online': 'عن بُعد',
+      'inPerson': 'حضوري',
+      'noData': 'لا توجد بيانات',
+      'passwordResetSent': 'تم إرسال رابط استعادة كلمة المرور! تحقق من بريدك.',
     },
   };
 
+  /// Get a localized string. Falls back to Google Translate if key is not found.
   String get(String key) {
-    return _localizedValues[locale.languageCode]?[key] ?? key;
+    final langCode = locale.languageCode;
+
+    // First check predefined translations
+    if (_localizedValues[langCode]?.containsKey(key) == true) {
+      return _localizedValues[langCode]![key]!;
+    }
+
+    // Check cache
+    if (_translationCache[langCode]?.containsKey(key) == true) {
+      return _translationCache[langCode]![key]!;
+    }
+
+    // Return key if not found (will be auto-translated async)
+    return key;
+  }
+
+  /// Async get with auto-translation fallback
+  Future<String> getAsync(String key) async {
+    final langCode = locale.languageCode;
+
+    // First check predefined translations
+    if (_localizedValues[langCode]?.containsKey(key) == true) {
+      return _localizedValues[langCode]![key]!;
+    }
+
+    // Check cache
+    if (_translationCache[langCode]?.containsKey(key) == true) {
+      return _translationCache[langCode]![key]!;
+    }
+
+    // If we have English version and need Arabic, translate it
+    if (langCode == 'ar' && _localizedValues['en']?.containsKey(key) == true) {
+      final englishText = _localizedValues['en']![key]!;
+      final translated = await TranslationService.translate(englishText);
+      _translationCache['ar']![key] = translated;
+      return translated;
+    }
+
+    return key;
+  }
+
+  /// Translate any text on-the-fly
+  Future<String> translate(String text) async {
+    if (locale.languageCode == 'en') return text;
+    return TranslationService.translate(text, to: locale.languageCode);
   }
 }
 

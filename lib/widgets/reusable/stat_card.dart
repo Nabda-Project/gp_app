@@ -19,6 +19,7 @@ class StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(AppDimensions.paddingM),
+      clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(14),
@@ -30,36 +31,66 @@ class StatCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
+      child: Stack(
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
+          // Decorative Background Icon
+          Positioned(
+            right: -10,
+            bottom: -10,
+            child: Icon(
+              icon,
+              size: 70, // Increased size slightly
+              color: color.withOpacity(
+                0.04,
+              ), // user said: "reduce opacity of logo", "increase font", "make bold".
+              // Let's go with 0.04 to be safe.
             ),
-            child: Icon(icon, color: color, size: 20),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                Text(
-                  label,
-                  style: const TextStyle(fontSize: 11, color: AppColors.grey),
-                  overflow: TextOverflow.ellipsis,
+                child: Icon(
+                  icon,
+                  color: color,
+                  size: 24,
+                ), // Slightly larger icon
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment:
+                      MainAxisAlignment.center, // Center vertically
+                  children: [
+                    Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: 28, // Increased from 22
+                        fontWeight: FontWeight.w800, // Extra bold
+                        color: color,
+                        height: 1.0,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 13, // Increased from 11
+                        fontWeight: FontWeight.bold, // Added bold
+                        color: AppColors.grey,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),

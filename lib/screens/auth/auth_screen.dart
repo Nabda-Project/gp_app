@@ -7,7 +7,9 @@ import '../../services/storage_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
 import '../../models/user_model.dart';
+import '../../services/notification_service.dart';
 import '../../utils/app_localizations.dart';
+import '../../widgets/animations/fade_slide_transition.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -57,16 +59,12 @@ class _AuthScreenState extends State<AuthScreen>
 
   void _showError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: AppColors.error),
-    );
+    NotificationService.showError(title: 'Error', message: message);
   }
 
   void _showSuccess(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.green),
-    );
+    NotificationService.showSuccess(title: 'Success', message: message);
   }
 
   Future<void> _handleAuthSuccess(
@@ -148,7 +146,7 @@ class _AuthScreenState extends State<AuthScreen>
         _loginPasswordController.text,
       );
       if (credential.user != null) {
-        await _handleAuthSuccess(credential.user!, 'Patient');
+        await _handleAuthSuccess(credential.user!, null);
       }
     } on FirebaseAuthException catch (e) {
       _showError(_getAuthErrorMessage(e.code));
@@ -222,19 +220,19 @@ class _AuthScreenState extends State<AuthScreen>
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
-            title: const Text('Reset Password'),
+            title: Text(AppLocalizations.of(context)!.get('resetPassword')),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  'Enter your email address and we\'ll send you a link to reset your password.',
-                ),
+                Text(AppLocalizations.of(context)!.get('resetPasswordDesc')),
                 const SizedBox(height: 16),
                 TextField(
                   controller: emailController,
                   keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
-                    labelText: 'Email Address',
+                    labelText: AppLocalizations.of(
+                      context,
+                    )!.get('emailAddress'),
                     prefixIcon: const Icon(
                       Icons.email,
                       color: AppColors.primaryBlue,
@@ -252,13 +250,13 @@ class _AuthScreenState extends State<AuthScreen>
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
+                child: Text(AppLocalizations.of(context)!.get('cancel')),
               ),
               ElevatedButton(
                 onPressed: () async {
                   final email = emailController.text.trim();
                   if (email.isEmpty || !email.contains('@')) {
-                    _showError('Please enter a valid email');
+                    _showError(AppLocalizations.of(context)!.get('validEmail'));
                     return;
                   }
                   Navigator.pop(context);
@@ -282,9 +280,9 @@ class _AuthScreenState extends State<AuthScreen>
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                child: const Text(
-                  'Send Reset Link',
-                  style: TextStyle(color: Colors.white),
+                child: Text(
+                  AppLocalizations.of(context)!.get('sendResetLink'),
+                  style: const TextStyle(color: Colors.white),
                 ),
               ),
             ],
@@ -323,30 +321,44 @@ class _AuthScreenState extends State<AuthScreen>
           child: Column(
             children: [
               const SizedBox(height: 20),
-              const AppLogo(size: 100),
-              const SizedBox(height: AppDimensions.paddingL),
-              Text(
-                AppLocalizations.of(context)!.get('accessAccount'),
-                style: Theme.of(context).textTheme.titleLarge,
-                textAlign: TextAlign.center,
+              FadeSlideTransition(
+                delay: const Duration(milliseconds: 100),
+                child: const AppLogo(size: 100),
               ),
               const SizedBox(height: AppDimensions.paddingL),
-              TabBar(
-                controller: _tabController,
-                labelColor: AppColors.primaryBlue,
-                unselectedLabelColor: AppColors.grey,
-                indicatorColor: AppColors.primaryBlue,
-                tabs: [
-                  Tab(text: AppLocalizations.of(context)!.get('login')),
-                  Tab(text: AppLocalizations.of(context)!.get('createAccount')),
-                ],
+              FadeSlideTransition(
+                delay: const Duration(milliseconds: 200),
+                child: Text(
+                  AppLocalizations.of(context)!.get('accessAccount'),
+                  style: Theme.of(context).textTheme.titleLarge,
+                  textAlign: TextAlign.center,
+                ),
               ),
               const SizedBox(height: AppDimensions.paddingL),
-              SizedBox(
-                height: 520,
-                child: TabBarView(
+              FadeSlideTransition(
+                delay: const Duration(milliseconds: 300),
+                child: TabBar(
                   controller: _tabController,
-                  children: [_buildLoginForm(), _buildRegisterForm()],
+                  labelColor: AppColors.primaryBlue,
+                  unselectedLabelColor: AppColors.grey,
+                  indicatorColor: AppColors.primaryBlue,
+                  tabs: [
+                    Tab(text: AppLocalizations.of(context)!.get('login')),
+                    Tab(
+                      text: AppLocalizations.of(context)!.get('createAccount'),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppDimensions.paddingL),
+              FadeSlideTransition(
+                delay: const Duration(milliseconds: 400),
+                child: SizedBox(
+                  height: 520,
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [_buildLoginForm(), _buildRegisterForm()],
+                  ),
                 ),
               ),
             ],
@@ -541,7 +553,7 @@ class _AuthScreenState extends State<AuthScreen>
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
-            'OR',
+            AppLocalizations.of(context)!.get('or'),
             style: TextStyle(
               color: AppColors.grey,
               fontWeight: FontWeight.w500,
@@ -566,7 +578,7 @@ class _AuthScreenState extends State<AuthScreen>
             errorBuilder:
                 (_, __, ___) => const Icon(Icons.g_mobiledata, size: 24),
           ),
-          label: const Text('Continue with Google'),
+          label: Text(AppLocalizations.of(context)!.get('continueWithGoogle')),
           style: OutlinedButton.styleFrom(
             padding: const EdgeInsets.symmetric(vertical: 12),
             minimumSize: const Size(double.infinity, 48),
@@ -645,6 +657,29 @@ class _AuthScreenState extends State<AuthScreen>
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.error, width: 1),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSocialButton(
+    String iconUrl,
+    String label,
+    VoidCallback onPressed,
+  ) {
+    return OutlinedButton.icon(
+      onPressed: _isLoading ? null : onPressed,
+      icon: Image.network(
+        iconUrl,
+        height: 24,
+        width: 24,
+        errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, size: 24),
+      ),
+      label: Text(label),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        minimumSize: const Size(double.infinity, 48),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        side: BorderSide(color: Colors.grey.shade300),
       ),
     );
   }

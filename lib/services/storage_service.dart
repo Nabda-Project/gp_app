@@ -44,7 +44,7 @@ class StorageService {
 
   static Future<void> logout() async {
     final box = Hive.box<UserModel>(userBoxName);
-    await box.clear(); // Clears all data in the user box
+    await box.clear();
   }
 
   // --- Measurement Methods ---

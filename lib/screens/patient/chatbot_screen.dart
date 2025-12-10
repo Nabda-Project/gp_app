@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../utils/constants.dart';
 import '../../utils/app_localizations.dart';
 import '../../widgets/reusable/decorated_background.dart';
+import '../../widgets/animations/animated_list_item.dart';
+import '../../widgets/animations/scale_on_tap.dart';
 
 class ChatbotScreen extends StatefulWidget {
   const ChatbotScreen({super.key});
@@ -107,47 +109,56 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                 itemCount: _messages.length,
                 itemBuilder: (context, index) {
                   final msg = _messages[index];
-                  return Align(
-                    alignment:
+                  return AnimatedListItem(
+                    index: index,
+                    staggerDelay: const Duration(milliseconds: 50),
+                    beginOffset:
                         msg.isUser
-                            ? Alignment.centerRight
-                            : Alignment.centerLeft,
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(16),
-                      constraints: BoxConstraints(
-                        maxWidth: MediaQuery.of(context).size.width * 0.75,
-                      ),
-                      decoration: BoxDecoration(
-                        color:
-                            msg.isUser
-                                ? AppColors.primaryBlue
-                                : AppColors.white,
-                        borderRadius: BorderRadius.only(
-                          topLeft: const Radius.circular(16),
-                          topRight: const Radius.circular(16),
-                          bottomLeft:
-                              msg.isUser
-                                  ? const Radius.circular(16)
-                                  : Radius.zero,
-                          bottomRight:
-                              msg.isUser
-                                  ? Radius.zero
-                                  : const Radius.circular(16),
+                            ? const Offset(0.2, 0)
+                            : const Offset(-0.2, 0),
+                    child: Align(
+                      alignment:
+                          msg.isUser
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(16),
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width * 0.75,
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 5,
-                            offset: const Offset(0, 2),
+                        decoration: BoxDecoration(
+                          color:
+                              msg.isUser
+                                  ? AppColors.primaryBlue
+                                  : AppColors.white,
+                          borderRadius: BorderRadius.only(
+                            topLeft: const Radius.circular(16),
+                            topRight: const Radius.circular(16),
+                            bottomLeft:
+                                msg.isUser
+                                    ? const Radius.circular(16)
+                                    : Radius.zero,
+                            bottomRight:
+                                msg.isUser
+                                    ? Radius.zero
+                                    : const Radius.circular(16),
                           ),
-                        ],
-                      ),
-                      child: Text(
-                        msg.text,
-                        style: TextStyle(
-                          color: msg.isUser ? Colors.white : AppColors.darkBlue,
-                          fontSize: 16,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 5,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          msg.text,
+                          style: TextStyle(
+                            color:
+                                msg.isUser ? Colors.white : AppColors.darkBlue,
+                            fontSize: 16,
+                          ),
                         ),
                       ),
                     ),
@@ -181,11 +192,18 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                     ),
                   ),
                   const SizedBox(width: AppDimensions.paddingS),
-                  IconButton(
-                    onPressed: _sendMessage,
-                    icon: const Icon(
-                      Icons.send_rounded,
-                      color: AppColors.primaryBlue,
+                  ScaleOnTap(
+                    onTap: _sendMessage,
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryBlue,
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: const Icon(
+                        Icons.send_rounded,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ],

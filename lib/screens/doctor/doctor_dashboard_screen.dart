@@ -9,6 +9,9 @@ import '../../widgets/reusable/section_title.dart';
 import '../../widgets/reusable/patient_card.dart';
 import '../../widgets/reusable/stat_card.dart';
 import '../../widgets/reusable/alert_card.dart';
+import '../../widgets/animations/fade_slide_transition.dart';
+import '../../widgets/animations/animated_list_item.dart';
+import '../../widgets/reusable/custom_bottom_nav.dart';
 
 class DoctorDashboardScreen extends StatefulWidget {
   const DoctorDashboardScreen({super.key});
@@ -106,47 +109,30 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: pages[_currentIndex],
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 20,
-              offset: const Offset(0, -5),
-            ),
-          ],
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) {
-            setState(() {
-              _currentIndex = index;
-            });
-          },
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: AppColors.white,
-          selectedItemColor: AppColors.primaryBlue,
-          unselectedItemColor: AppColors.grey,
-          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
-          elevation: 0,
-          items: [
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.dashboard_outlined),
-              activeIcon: const Icon(Icons.dashboard),
-              label: AppLocalizations.of(context)!.get('dashboard'),
-            ),
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.people_outline),
-              activeIcon: const Icon(Icons.people),
-              label: AppLocalizations.of(context)!.get('myPatients'),
-            ),
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.person_outline),
-              activeIcon: const Icon(Icons.person),
-              label: AppLocalizations.of(context)!.get('profile'),
-            ),
-          ],
-        ),
+      bottomNavigationBar: CustomBottomNavBar(
+        currentIndex: _currentIndex,
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        items: [
+          CustomNavItem(
+            icon: Icons.dashboard_outlined,
+            activeIcon: Icons.dashboard,
+            label: AppLocalizations.of(context)!.get('dashboard'),
+          ),
+          CustomNavItem(
+            icon: Icons.people_outline,
+            activeIcon: Icons.people,
+            label: AppLocalizations.of(context)!.get('myPatients'),
+          ),
+          CustomNavItem(
+            icon: Icons.person_outline,
+            activeIcon: Icons.person,
+            label: AppLocalizations.of(context)!.get('profile'),
+          ),
+        ],
       ),
     );
   }
@@ -165,86 +151,141 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
               backgroundColor: AppColors.white,
               elevation: 0,
               flexibleSpace: FlexibleSpaceBar(
-                background: Container(
-                  decoration: const BoxDecoration(
-                    gradient: AppColors.primaryGradient,
-                  ),
-                  child: SafeArea(
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppDimensions.paddingL),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(3),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const CircleAvatar(
-                                  radius: 24,
-                                  backgroundColor: Colors.white,
-                                  child: Icon(
-                                    Icons.medical_services,
-                                    color: AppColors.primaryBlue,
-                                    size: 24,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: AppDimensions.paddingM),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      AppLocalizations.of(
-                                        context,
-                                      )!.get('hello'),
-                                      style: TextStyle(
-                                        color: Colors.white.withOpacity(0.8),
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                    Text(
-                                      "Dr. ${_currentUser?.fullName ?? 'Doctor'}",
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              IconButton(
-                                icon: Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Icon(
-                                    Icons.notifications_outlined,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                onPressed: () {
-                                  Navigator.pushNamed(
-                                    context,
-                                    '/notifications',
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
-                        ],
+                background: Stack(
+                  children: [
+                    Container(
+                      decoration: const BoxDecoration(
+                        gradient: AppColors.primaryGradient,
                       ),
                     ),
-                  ),
+                    // Decorative circles
+                    Positioned(
+                      top: -60,
+                      right: -30,
+                      child: Container(
+                        width: 200,
+                        height: 200,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.08),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: -20,
+                      left: -40,
+                      child: Container(
+                        width: 140,
+                        height: 140,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.08),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                    // Content
+                    SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.all(AppDimensions.paddingL),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.2),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const CircleAvatar(
+                                    radius: 26, // Slightly larger
+                                    backgroundColor: Colors.white,
+                                    child: Icon(
+                                      Icons.medical_services,
+                                      color: AppColors.primaryBlue,
+                                      size: 26,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: AppDimensions.paddingM),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        AppLocalizations.of(
+                                          context,
+                                        )!.get('hello'),
+                                        style: TextStyle(
+                                          color: Colors.white.withOpacity(0.9),
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                      Text(
+                                        "Dr. ${_currentUser?.fullName ?? 'Doctor'}",
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 22, // Larger font
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      // Date display
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 3,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.15),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          AppLocalizations.of(context)!
+                                              .get('appointmentDate')
+                                              .split('•')
+                                              .first, // Reusing localized date part
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: IconButton(
+                                    icon: const Icon(
+                                      Icons.notifications_outlined,
+                                      color: Colors.white,
+                                    ),
+                                    onPressed: () {
+                                      Navigator.pushNamed(
+                                        context,
+                                        '/notifications',
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -255,59 +296,87 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Quick Stats Row
-                    // Quick Stats Row
-                    StatCard(
-                      icon: Icons.people,
-                      value: '${_mockPatients.length}',
-                      label: AppLocalizations.of(context)!.get('totalPatients'),
-                      color: AppColors.primaryBlue,
-                    ),
-                    const SizedBox(height: AppDimensions.paddingL),
-                    StatCard(
-                      icon: Icons.warning_amber_rounded,
-                      value:
-                          '${_mockPatients.where((p) => p['status'] != 'Normal').length}',
-                      label: 'Need Attention',
-                      color: Colors.orange,
-                    ),
-                    const SizedBox(height: AppDimensions.paddingM),
-                    StatCard(
-                      icon: Icons.message,
-                      value: '3',
-                      label: AppLocalizations.of(
-                        context,
-                      )!.get('pendingMessages'),
-                      color: AppColors.accentTeal,
-                    ),
-                    const SizedBox(height: AppDimensions.paddingL),
-                    StatCard(
-                      icon: Icons.calendar_today,
-                      value: '2',
-                      label: AppLocalizations.of(
-                        context,
-                      )!.get('todayAppointments'),
-                      color: Colors.purple,
+                    // Quick Stats Grid
+                    GridView.count(
+                      crossAxisCount: 2,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      mainAxisSpacing: AppDimensions.paddingM,
+                      crossAxisSpacing: AppDimensions.paddingM,
+                      childAspectRatio: 1.5,
+                      children: [
+                        AnimatedListItem(
+                          index: 0,
+                          child: StatCard(
+                            icon: Icons.people,
+                            value: '${_mockPatients.length}',
+                            label: AppLocalizations.of(
+                              context,
+                            )!.get('totalPatients'),
+                            color: AppColors.primaryBlue,
+                          ),
+                        ),
+                        AnimatedListItem(
+                          index: 1,
+                          child: StatCard(
+                            icon: Icons.warning_amber_rounded,
+                            value:
+                                '${_mockPatients.where((p) => p['status'] != 'Normal').length}',
+                            label: AppLocalizations.of(
+                              context,
+                            )!.get('needAttention'),
+                            color: Colors.orange,
+                          ),
+                        ),
+                        AnimatedListItem(
+                          index: 2,
+                          child: StatCard(
+                            icon: Icons.message,
+                            value: '3',
+                            label: AppLocalizations.of(
+                              context,
+                            )!.get('pendingMessages'),
+                            color: AppColors.accentTeal,
+                          ),
+                        ),
+                        AnimatedListItem(
+                          index: 3,
+                          child: StatCard(
+                            icon: Icons.calendar_today,
+                            value: '2',
+                            label: AppLocalizations.of(
+                              context,
+                            )!.get('todayAppointments'),
+                            color: Colors.purple,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: AppDimensions.paddingL),
 
                     // Critical Patients Alert
                     if (_mockPatients.any((p) => p['status'] == 'Critical'))
-                      AlertCard(
-                        title: 'Critical Alert',
-                        message:
-                            '${_mockPatients.where((p) => p['status'] == 'Critical').length} patient(s) need immediate attention',
-                        onTap: () {
-                          final criticalPatients =
-                              _mockPatients
-                                  .where((p) => p['status'] == 'Critical')
-                                  .toList();
-                          Navigator.pushNamed(
+                      FadeSlideTransition(
+                        delay: const Duration(milliseconds: 400),
+                        child: AlertCard(
+                          title: AppLocalizations.of(
                             context,
-                            '/patient_detail',
-                            arguments: criticalPatients.first,
-                          );
-                        },
+                          )!.get('criticalAlert'),
+                          message:
+                              '${_mockPatients.where((p) => p['status'] == 'Critical').length} ${AppLocalizations.of(context)!.get('patientsNeedAttention')}',
+                          buttonText: AppLocalizations.of(context)!.get('view'),
+                          onTap: () {
+                            final criticalPatients =
+                                _mockPatients
+                                    .where((p) => p['status'] == 'Critical')
+                                    .toList();
+                            Navigator.pushNamed(
+                              context,
+                              '/patient_detail',
+                              arguments: criticalPatients.first,
+                            );
+                          },
+                        ),
                       ),
 
                     const SizedBox(height: AppDimensions.paddingL),

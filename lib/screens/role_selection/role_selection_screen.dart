@@ -6,6 +6,8 @@ import '../../widgets/reusable/custom_button.dart';
 import '../../services/firestore_service.dart';
 import '../../services/storage_service.dart';
 import '../../models/user_model.dart';
+import '../../widgets/animations/fade_slide_transition.dart';
+import '../../widgets/animations/animated_list_item.dart';
 
 class RoleSelectionScreen extends StatefulWidget {
   const RoleSelectionScreen({super.key});
@@ -87,13 +89,16 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SizedBox(height: AppDimensions.paddingM),
-            Text(
-              "Choose your account type",
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: AppColors.darkBlue,
+            FadeSlideTransition(
+              delay: const Duration(milliseconds: 100),
+              child: Text(
+                "Choose your account type",
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.darkBlue,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 50),
 
@@ -101,20 +106,26 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
               child: Row(
                 children: [
                   Expanded(
-                    child: CustomCard(
-                      label: "Doctor",
-                      icon: Icons.local_hospital,
-                      isSelected: isDoctor,
-                      onTap: () => _selectRole('doctor'),
+                    child: AnimatedListItem(
+                      index: 0,
+                      child: CustomCard(
+                        label: "Doctor",
+                        icon: Icons.local_hospital,
+                        isSelected: isDoctor,
+                        onTap: () => _selectRole('doctor'),
+                      ),
                     ),
                   ),
                   const SizedBox(width: AppDimensions.paddingM),
                   Expanded(
-                    child: CustomCard(
-                      label: "Patient",
-                      icon: Icons.person,
-                      isSelected: isPatient,
-                      onTap: () => _selectRole('patient'),
+                    child: AnimatedListItem(
+                      index: 1,
+                      child: CustomCard(
+                        label: "Patient",
+                        icon: Icons.person,
+                        isSelected: isPatient,
+                        onTap: () => _selectRole('patient'),
+                      ),
                     ),
                   ),
                 ],
