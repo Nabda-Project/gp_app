@@ -43,8 +43,8 @@
 
 1.  **Clone the repository**:
     ```bash
-    git clone https://github.com/yourusername/healthsync.git
-    cd healthsync
+    git clone https://github.com/Gp-team26/gp_app
+    cd gp_app
     ```
 
 2.  **Install Dependencies**:
