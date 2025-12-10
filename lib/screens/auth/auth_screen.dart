@@ -718,24 +718,52 @@ class _AuthScreenState extends State<AuthScreen>
   Widget _buildSocialButtons() {
     return Column(
       children: [
-        // Google Sign-In Button
-        OutlinedButton.icon(
-          onPressed: _isLoading ? null : _handleGoogleSignIn,
-          icon: Image.network(
-            'https://www.google.com/favicon.ico',
-            height: 24,
-            width: 24,
-            errorBuilder:
-                (_, __, ___) => const Icon(Icons.g_mobiledata, size: 24),
-          ),
-          label: Text(AppLocalizations.of(context)!.get('continueWithGoogle')),
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            minimumSize: const Size(double.infinity, 48),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+        // Google Sign-In Button (Gray Pill)
+        GestureDetector(
+          onTap: _isLoading ? null : _handleGoogleSignIn,
+          child: Container(
+            width: double.infinity,
+            height: 52,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF2F2F2), // Light Gray
+              borderRadius: BorderRadius.circular(26), // Pill shape
+              // Gray style typically has no border
             ),
-            side: BorderSide(color: Colors.grey.shade300),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // "Real" Multicolored Google Logo
+                Image.network(
+                  'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/480px-Google_%22G%22_logo.svg.png',
+                  height: 24,
+                  width: 24,
+                  errorBuilder:
+                      (_, __, ___) =>
+                      // Fallback to favicon if wiki fails
+                      Image.network(
+                        'https://www.google.com/favicon.ico',
+                        height: 24,
+                        width: 24,
+                        errorBuilder:
+                            (context, error, stackTrace) => const Icon(
+                              Icons.g_mobiledata,
+                              color: Colors.black, // Dark icon for light bg
+                              size: 24,
+                            ),
+                      ),
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'Sign in with Google',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF1F1F1F), // Dark text
+                    fontFamily: 'Roboto',
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],

@@ -24,6 +24,8 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
   int _currentIndex = 0;
   UserModel? _currentUser;
   final TextEditingController _searchController = TextEditingController();
+  final PageController _pageController =
+      PageController(); // Added PageController
   String _searchQuery = '';
 
   // Mock data for patients
@@ -73,6 +75,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
   void dispose() {
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
+    _pageController.dispose(); // Dispose PageController
     super.dispose();
   }
 
@@ -108,13 +111,27 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: pages[_currentIndex],
+      body: PageView(
+        controller: _pageController,
+        onPageChanged: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        physics: const BouncingScrollPhysics(), // Smooth bounce effect
+        children: pages,
+      ),
       bottomNavigationBar: CustomBottomNavBar(
         currentIndex: _currentIndex,
         onTap: (index) {
           setState(() {
             _currentIndex = index;
           });
+          _pageController.animateToPage(
+            index,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
         },
         items: [
           CustomNavItem(
@@ -399,6 +416,11 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                             setState(() {
                               _currentIndex = 1;
                             });
+                            _pageController.animateToPage(
+                              1,
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                            );
                           },
                           child: Text(
                             AppLocalizations.of(context)!.get('seeAll'),
