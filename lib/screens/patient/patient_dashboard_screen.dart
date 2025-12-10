@@ -12,6 +12,7 @@ import '../../widgets/reusable/decorated_background.dart';
 import '../../widgets/animations/fade_slide_transition.dart';
 import '../../widgets/animations/animated_list_item.dart';
 import '../../widgets/reusable/custom_bottom_nav.dart';
+import 'doctor_chat_screen.dart'; // Added import
 
 class PatientDashboardScreen extends StatefulWidget {
   const PatientDashboardScreen({super.key});
@@ -23,11 +24,19 @@ class PatientDashboardScreen extends StatefulWidget {
 class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
   int _currentIndex = 0;
   UserModel? _currentUser;
+  final PageController _pageController =
+      PageController(); // Added PageController
 
   @override
   void initState() {
     super.initState();
     _loadUser();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   void _loadUser() {
@@ -40,37 +49,46 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
   Widget build(BuildContext context) {
     final List<Widget> pages = [
       _buildDashboardContent(), // 0: Dashboard
-      const SizedBox(), // 1: Doctor Chat (Handled via pushNamed)
+      const DoctorChatScreen(), // 1: Doctor Chat
       const ProfileScreen(), // 2: Profile
     ];
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body:
-          _currentIndex ==
-                  2 // Profile is now index 2
-              ? pages[2]
-              : _currentIndex ==
-                  1 // Doctor Chat is now index 1
-              ? pages[1]
-              : _buildDashboardContent(), // Default to dashboard (index 0)
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.pushNamed(context, '/chatbot');
+      body: PageView(
+        controller: _pageController,
+        onPageChanged: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
         },
-        backgroundColor: AppColors.primaryBlue,
-        child: const FaIcon(FontAwesomeIcons.robot, color: Colors.white),
+        physics: const BouncingScrollPhysics(),
+        children: pages,
       ),
+      floatingActionButton:
+          _currentIndex == 1
+              ? null
+              : FloatingActionButton(
+                onPressed: () {
+                  Navigator.pushNamed(context, '/chatbot');
+                },
+                backgroundColor: AppColors.primaryBlue,
+                child: const FaIcon(
+                  FontAwesomeIcons.robot,
+                  color: Colors.white,
+                ),
+              ),
       bottomNavigationBar: CustomBottomNavBar(
         currentIndex: _currentIndex,
         onTap: (index) {
-          if (index == 1) {
-            Navigator.pushNamed(context, '/doctor_chat');
-          } else {
-            setState(() {
-              _currentIndex = index;
-            });
-          }
+          setState(() {
+            _currentIndex = index;
+          });
+          _pageController.animateToPage(
+            index,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
         },
         items: [
           CustomNavItem(
@@ -95,132 +113,251 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
 
   Widget _buildDashboardContent() {
     return Scaffold(
-      // Web structure trick to keep AppBar specific to Dashboard if needed, or just return column
-      // But dashboard has specific AppBar with "Hello User".
-      // Profile has its own AppBar.
-      // So I should extract the dashboard body + appbar into a widget or conditional.
-      // Let's refactor: The main Scaffold body will change.
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "HealthSync",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: AppColors.darkBlue,
-                fontSize: 20,
-              ),
-            ),
-            if (_currentUser != null)
-              Text(
-                "Hello, ${_currentUser!.fullName}",
-                style: const TextStyle(
-                  color: AppColors.grey,
-                  fontSize: 14,
-                  fontWeight: FontWeight.normal,
-                ),
-              ),
-          ],
-        ),
-        backgroundColor: AppColors.white,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(
-              Icons.notifications_outlined,
-              color: AppColors.darkBlue,
-            ),
-            onPressed: () {
-              Navigator.pushNamed(context, '/notifications');
-            },
-          ),
-        ],
-      ),
+      backgroundColor: AppColors.background,
       body: DecoratedBackground(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppDimensions.paddingL),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Animated Status Card
-              FadeSlideTransition(
-                delay: const Duration(milliseconds: 100),
-                child: StatusCard(
-                  title: AppLocalizations.of(
-                    context,
-                  )!.get('currentHealthStatus'),
-                  status: AppLocalizations.of(context)!.get('normal'),
-                  isHealthy: true,
+        child: CustomScrollView(
+          slivers: [
+            // Custom App Bar (Matching Doctor Dashboard)
+            SliverAppBar(
+              expandedHeight: 140,
+              floating: false,
+              pinned: true,
+              backgroundColor: AppColors.white,
+              elevation: 0,
+              flexibleSpace: FlexibleSpaceBar(
+                background: Stack(
+                  children: [
+                    Container(
+                      decoration: const BoxDecoration(
+                        gradient: AppColors.primaryGradient,
+                      ),
+                    ),
+                    // Decorative circles
+                    Positioned(
+                      top: -60,
+                      right: -30,
+                      child: Container(
+                        width: 200,
+                        height: 200,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.08),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: -20,
+                      left: -40,
+                      child: Container(
+                        width: 140,
+                        height: 140,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.08),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                    // Content
+                    SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.all(AppDimensions.paddingL),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.2),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const CircleAvatar(
+                                    radius: 26,
+                                    backgroundColor: Colors.white,
+                                    child: Icon(
+                                      Icons.person, // Person icon for patient
+                                      color: AppColors.primaryBlue,
+                                      size: 26,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: AppDimensions.paddingM),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        AppLocalizations.of(
+                                          context,
+                                        )!.get('hello'),
+                                        style: TextStyle(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.9,
+                                          ),
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                      Text(
+                                        _currentUser?.fullName ?? 'User',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.2,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            20,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          "${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][DateTime.now().weekday - 1]}, ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][DateTime.now().month - 1]} ${DateTime.now().day}",
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: IconButton(
+                                    icon: const Icon(
+                                      Icons.notifications_outlined,
+                                      color: Colors.white,
+                                    ),
+                                    onPressed: () {
+                                      Navigator.pushNamed(
+                                        context,
+                                        '/notifications',
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: AppDimensions.paddingL),
-              FadeSlideTransition(
-                delay: const Duration(milliseconds: 200),
-                child: SectionTitle(
-                  title: AppLocalizations.of(context)!.get('vitals'),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(AppDimensions.paddingL),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Animated Status Card
+                    FadeSlideTransition(
+                      delay: const Duration(milliseconds: 100),
+                      child: StatusCard(
+                        title: AppLocalizations.of(
+                          context,
+                        )!.get('currentHealthStatus'),
+                        status: AppLocalizations.of(context)!.get('normal'),
+                        isHealthy: true,
+                      ),
+                    ),
+                    const SizedBox(height: AppDimensions.paddingL),
+                    FadeSlideTransition(
+                      delay: const Duration(milliseconds: 200),
+                      child: SectionTitle(
+                        title: AppLocalizations.of(context)!.get('vitals'),
+                      ),
+                    ),
+                    const SizedBox(height: AppDimensions.paddingM),
+                    // Animated Vitals Grid
+                    GridView.count(
+                      crossAxisCount: 2,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisSpacing: AppDimensions.paddingM,
+                      mainAxisSpacing: AppDimensions.paddingM,
+                      childAspectRatio: 1.5,
+                      children: [
+                        AnimatedListItem(
+                          index: 0,
+                          child: VitalCard(
+                            label: AppLocalizations.of(
+                              context,
+                            )!.get('heartRate'),
+                            value: "72",
+                            unit: "bpm",
+                            icon: Icons.favorite,
+                            color: Colors.redAccent,
+                          ),
+                        ),
+                        AnimatedListItem(
+                          index: 1,
+                          child: VitalCard(
+                            label: AppLocalizations.of(
+                              context,
+                            )!.get('bloodOxygen'),
+                            value: "98",
+                            unit: "%",
+                            icon: Icons.water_drop,
+                            color: Colors.lightBlue,
+                          ),
+                        ),
+                        AnimatedListItem(
+                          index: 2,
+                          child: VitalCard(
+                            label: AppLocalizations.of(
+                              context,
+                            )!.get('bloodPressure'),
+                            value: "120/80",
+                            unit: "mmHg",
+                            icon: Icons.speed,
+                            color: Colors.orange,
+                          ),
+                        ),
+                        AnimatedListItem(
+                          index: 3,
+                          child: VitalCard(
+                            label: AppLocalizations.of(
+                              context,
+                            )!.get('nextFollowUp'),
+                            value: "Oct 15",
+                            unit: "",
+                            icon: Icons.calendar_today,
+                            color: AppColors.primaryBlue,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppDimensions.paddingL),
+                    // Animated Follow-up Card
+                    FadeSlideTransition(
+                      delay: const Duration(milliseconds: 500),
+                      child: _buildFollowUpCard(),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: AppDimensions.paddingM),
-              // Animated Vitals Grid
-              GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisSpacing: AppDimensions.paddingM,
-                mainAxisSpacing: AppDimensions.paddingM,
-                childAspectRatio: 1.5,
-                children: [
-                  AnimatedListItem(
-                    index: 0,
-                    child: VitalCard(
-                      label: AppLocalizations.of(context)!.get('heartRate'),
-                      value: "72",
-                      unit: "bpm",
-                      icon: Icons.favorite,
-                      color: Colors.redAccent,
-                    ),
-                  ),
-                  AnimatedListItem(
-                    index: 1,
-                    child: VitalCard(
-                      label: AppLocalizations.of(context)!.get('bloodOxygen'),
-                      value: "98",
-                      unit: "%",
-                      icon: Icons.water_drop,
-                      color: Colors.lightBlue,
-                    ),
-                  ),
-                  AnimatedListItem(
-                    index: 2,
-                    child: VitalCard(
-                      label: AppLocalizations.of(context)!.get('bloodPressure'),
-                      value: "120/80",
-                      unit: "mmHg",
-                      icon: Icons.speed,
-                      color: Colors.orange,
-                    ),
-                  ),
-                  AnimatedListItem(
-                    index: 3,
-                    child: VitalCard(
-                      label: AppLocalizations.of(context)!.get('nextFollowUp'),
-                      value: "Oct 15",
-                      unit: "",
-                      icon: Icons.calendar_today,
-                      color: AppColors.primaryBlue,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppDimensions.paddingL),
-              // Animated Follow-up Card
-              FadeSlideTransition(
-                delay: const Duration(milliseconds: 500),
-                child: _buildFollowUpCard(),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
