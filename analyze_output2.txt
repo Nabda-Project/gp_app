@@ -1,0 +1,19 @@
+﻿Analyzing gp_app...                                             
+
+   info - Parameter 'message' could be a super parameter - lib\core\api\api_exceptions.dart:14:3 - use_super_parameters
+   info - Parameter 'message' could be a super parameter - lib\core\api\api_exceptions.dart:20:3 - use_super_parameters
+   info - Parameter 'message' could be a super parameter - lib\core\api\api_exceptions.dart:26:3 - use_super_parameters
+   info - Parameter 'message' could be a super parameter - lib\core\api\api_exceptions.dart:32:3 - use_super_parameters
+   info - Parameter 'message' could be a super parameter - lib\core\api\api_exceptions.dart:38:3 - use_super_parameters
+   info - Parameter 'message' could be a super parameter - lib\core\api\api_exceptions.dart:44:3 - use_super_parameters
+   info - The 'if' statement could be replaced by a null-aware assignment - lib\screens\auth\auth_screen.dart:156:9 - prefer_conditional_assignment
+
+flutter : 7 issues found. (ran in 13.3s)
+At line:1 char:1
++ flutter analyze 2>&1 | Out-File -Encoding utf8 
+d:\engineer\4th\GP\gp_ ...
++ ~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (7 issues 
+found    . (ran in 13.3s):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 

@@ -3,6 +3,7 @@ import '../../utils/constants.dart';
 import '../../utils/app_localizations.dart';
 import '../../services/auth_service.dart';
 import '../../services/storage_service.dart';
+import '../../core/api/dio_client.dart';
 
 /// A reusable logout confirmation dialog with modern styling.
 ///
@@ -41,6 +42,7 @@ class LogoutDialog extends StatelessWidget {
     Navigator.pop(dialogContext);
     await AuthService.signOut();
     await StorageService.logout();
+    DioClient.reset(); // Clear cached Dio instance (JWT headers, etc.)
     if (context.mounted) {
       Navigator.pushNamedAndRemoveUntil(
         context,

@@ -5,12 +5,17 @@ import '../../widgets/reusable/status_card.dart';
 import '../../widgets/reusable/decorated_background.dart';
 import '../../utils/app_localizations.dart';
 
-class PatientDetailScreen extends StatelessWidget {
+class PatientDetailScreen extends StatefulWidget {
   const PatientDetailScreen({super.key});
 
   @override
+  State<PatientDetailScreen> createState() => _PatientDetailScreenState();
+}
+
+class _PatientDetailScreenState extends State<PatientDetailScreen> {
+
+  @override
   Widget build(BuildContext context) {
-    // Get patient data from route arguments
     final patient =
         ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ??
         {
@@ -18,9 +23,10 @@ class PatientDetailScreen extends StatelessWidget {
           'name': 'Unknown Patient',
           'email': 'unknown@email.com',
           'status': 'Normal',
-          'heartRate': '72',
+          'heartRate': '--',
           'lastUpdate': 'N/A',
         };
+
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -64,6 +70,8 @@ class PatientDetailScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: AppDimensions.paddingM),
+
+              // Vitals Grid - mock data (Bluetooth smartwatch integration pending)
               GridView.count(
                 crossAxisCount: 2,
                 shrinkWrap: true,
@@ -74,38 +82,34 @@ class PatientDetailScreen extends StatelessWidget {
                 children: [
                   VitalCard(
                     label: AppLocalizations.of(context)!.get('heartRate'),
-                    value: patient['heartRate'] ?? '72',
+                    value: '--',
                     unit: 'bpm',
                     icon: Icons.favorite,
                     color: Colors.redAccent,
                   ),
                   VitalCard(
                     label: AppLocalizations.of(context)!.get('bloodOxygen'),
-                    value: '98',
+                    value: '--',
                     unit: '%',
                     icon: Icons.water_drop,
                     color: Colors.lightBlue,
                   ),
                   VitalCard(
-                    label: AppLocalizations.of(context)!.get('bloodPressure'),
-                    value: '120/80',
-                    unit: 'mmHg',
-                    icon: Icons.speed,
+                    label: 'Body Temp',
+                    value: '--',
+                    unit: '°C',
+                    icon: Icons.thermostat,
                     color: Colors.orange,
                   ),
                   VitalCard(
                     label: AppLocalizations.of(context)!.get('nextFollowUp'),
-                    value: 'Dec 15',
+                    value: 'N/A',
                     unit: '',
                     icon: Icons.calendar_today,
                     color: AppColors.primaryBlue,
                   ),
                 ],
               ),
-              const SizedBox(height: AppDimensions.paddingL),
-
-              // Recent Measurements
-              _buildMeasurementsSection(context),
             ],
           ),
         ),
@@ -177,10 +181,10 @@ class PatientDetailScreen extends StatelessWidget {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Icon(Icons.access_time, size: 14, color: AppColors.grey),
+                    const Icon(Icons.access_time, size: 14, color: AppColors.grey),
                     const SizedBox(width: 4),
                     Text(
-                      '${AppLocalizations.of(context)!.get('lastUpdate')}: ${patient['lastUpdate']}',
+                      '${AppLocalizations.of(context)!.get('lastUpdate')}: ${patient['lastUpdate'] ?? 'N/A'}',
                       style: const TextStyle(
                         fontSize: 12,
                         color: AppColors.grey,
@@ -196,110 +200,5 @@ class PatientDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMeasurementsSection(BuildContext context) {
-    final measurements = [
-      {
-        'date': 'Dec 9, 10:30 AM',
-        'heartRate': '72',
-        'bp': '120/80',
-        'oxygen': '98',
-      },
-      {
-        'date': 'Dec 8, 09:15 AM',
-        'heartRate': '75',
-        'bp': '118/78',
-        'oxygen': '97',
-      },
-      {
-        'date': 'Dec 7, 11:00 AM',
-        'heartRate': '70',
-        'bp': '122/82',
-        'oxygen': '99',
-      },
-    ];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          AppLocalizations.of(context)!.get('vitalsHistory'),
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: AppColors.darkBlue,
-          ),
-        ),
-        const SizedBox(height: AppDimensions.paddingM),
-        ...measurements.map(
-          (m) => Container(
-            margin: const EdgeInsets.only(bottom: AppDimensions.paddingS),
-            padding: const EdgeInsets.all(AppDimensions.paddingM),
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    m['date']!,
-                    style: const TextStyle(fontSize: 12, color: AppColors.grey),
-                  ),
-                ),
-                Expanded(
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.favorite,
-                        size: 14,
-                        color: Colors.redAccent,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        m['heartRate']!,
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Row(
-                    children: [
-                      const Icon(Icons.speed, size: 14, color: Colors.orange),
-                      const SizedBox(width: 4),
-                      Text(m['bp']!, style: const TextStyle(fontSize: 12)),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.water_drop,
-                        size: 14,
-                        color: Colors.lightBlue,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${m['oxygen']}%',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 }

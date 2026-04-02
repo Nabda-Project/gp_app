@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'dart:developer';
+import 'package:dio/dio.dart';
 import '../../utils/constants.dart';
 import '../../services/storage_service.dart';
+import '../../services/doctor_api_service.dart';
 import '../../models/user_model.dart';
+import '../../models/patient_response_model.dart';
+import '../../core/api/api_exceptions.dart';
 import '../profile/profile_screen.dart';
 import '../../utils/app_localizations.dart';
 import '../../widgets/reusable/decorated_background.dart';
@@ -12,6 +17,7 @@ import '../../widgets/reusable/alert_card.dart';
 import '../../widgets/animations/fade_slide_transition.dart';
 import '../../widgets/animations/animated_list_item.dart';
 import '../../widgets/reusable/custom_bottom_nav.dart';
+import '../../widgets/reusable/assign_patient_sheet.dart';
 
 class DoctorDashboardScreen extends StatefulWidget {
   const DoctorDashboardScreen({super.key});
@@ -24,45 +30,13 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
   int _currentIndex = 0;
   UserModel? _currentUser;
   final TextEditingController _searchController = TextEditingController();
-  final PageController _pageController =
-      PageController(); // Added PageController
+  final PageController _pageController = PageController();
   String _searchQuery = '';
 
-  // Mock data for patients
-  final List<Map<String, dynamic>> _mockPatients = [
-    {
-      'id': '1',
-      'name': 'Ahmed Hassan',
-      'email': 'ahmed@email.com',
-      'status': 'Normal',
-      'heartRate': '72',
-      'lastUpdate': '2h ago',
-    },
-    {
-      'id': '2',
-      'name': 'Sara Mohamed',
-      'email': 'sara@email.com',
-      'status': 'Warning',
-      'heartRate': '95',
-      'lastUpdate': '1h ago',
-    },
-    {
-      'id': '3',
-      'name': 'Omar Ali',
-      'email': 'omar@email.com',
-      'status': 'Normal',
-      'heartRate': '68',
-      'lastUpdate': '30m ago',
-    },
-    {
-      'id': '4',
-      'name': 'Fatima Youssef',
-      'email': 'fatima@email.com',
-      'status': 'Critical',
-      'heartRate': '110',
-      'lastUpdate': '5m ago',
-    },
-  ];
+  // Real data from API
+  List<PatientResponseModel> _patients = [];
+  bool _isLoadingPatients = true;
+  String? _patientsError;
 
   @override
   void initState() {
@@ -75,7 +49,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
   void dispose() {
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
-    _pageController.dispose(); // Dispose PageController
+    _pageController.dispose();
     super.dispose();
   }
 
@@ -86,19 +60,96 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
   }
 
   void _loadUser() {
+    final user = StorageService.getUser();
     setState(() {
-      _currentUser = StorageService.getUser();
+      _currentUser = user;
     });
+    if (user?.backendId != null) {
+      _fetchPatients(user!.backendId!);
+    } else {
+      setState(() {
+        _isLoadingPatients = false;
+        _patientsError = 'Doctor ID not found. Please log in again.';
+      });
+    }
   }
 
-  List<Map<String, dynamic>> get _filteredPatients {
-    if (_searchQuery.isEmpty) {
-      return _mockPatients;
+  Future<void> _fetchPatients(int doctorId) async {
+    setState(() {
+      _isLoadingPatients = true;
+      _patientsError = null;
+    });
+
+    try {
+      final patients = await DoctorApiService.getAssignedPatients(doctorId);
+      if (mounted) {
+        setState(() {
+          _patients = patients;
+          _isLoadingPatients = false;
+        });
+      }
+    } on NetworkException catch (e) {
+      log('Network error fetching patients: ${e.message}', name: 'DoctorDashboard');
+      if (mounted) {
+        setState(() {
+          _isLoadingPatients = false;
+          _patientsError = AppLocalizations.of(context)!.get('connectionError');
+        });
+      }
+    } on ServerException catch (e) {
+      log('Server error fetching patients: ${e.message}', name: 'DoctorDashboard');
+      if (mounted) {
+        setState(() {
+          _isLoadingPatients = false;
+          _patientsError = AppLocalizations.of(context)!.get('serverError');
+        });
+      }
+    } on ApiException catch (e) {
+      log('Failed to fetch patients: ${e.message}', name: 'DoctorDashboard');
+      if (mounted) {
+        setState(() {
+          _isLoadingPatients = false;
+          _patientsError = e.message;
+        });
+      }
+    } on DioException catch (_) {
+      if (mounted) {
+        setState(() {
+          _isLoadingPatients = false;
+          _patientsError = AppLocalizations.of(context)!.get('connectionError');
+        });
+      }
+    } catch (e) {
+      log('Failed to fetch patients: $e', name: 'DoctorDashboard');
+      if (mounted) {
+        setState(() {
+          _isLoadingPatients = false;
+          _patientsError = AppLocalizations.of(context)!.get('unexpectedError');
+        });
+      }
     }
-    return _mockPatients.where((patient) {
-      final name = patient['name'].toString().toLowerCase();
+  }
+
+  List<PatientResponseModel> get _filteredPatients {
+    if (_searchQuery.isEmpty) {
+      return _patients;
+    }
+    return _patients.where((patient) {
+      final name = patient.fullName.toLowerCase();
       return name.contains(_searchQuery);
     }).toList();
+  }
+
+  /// Determine display status from priority
+  String _priorityToStatus(String priority) {
+    switch (priority.toUpperCase()) {
+      case 'HIGH':
+        return 'Critical';
+      case 'MEDIUM':
+        return 'Warning';
+      default:
+        return 'Normal';
+    }
   }
 
   @override
@@ -118,7 +169,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
             _currentIndex = index;
           });
         },
-        physics: const BouncingScrollPhysics(), // Smooth bounce effect
+        physics: const BouncingScrollPhysics(),
         children: pages,
       ),
       bottomNavigationBar: CustomBottomNavBar(
@@ -155,6 +206,9 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
   }
 
   Widget _buildDashboardContent() {
+    final criticalCount = _patients.where((p) => _priorityToStatus(p.priority) == 'Critical').length;
+    final warningCount = _patients.where((p) => _priorityToStatus(p.priority) != 'Normal').length;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: DecoratedBackground(
@@ -175,7 +229,6 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                         gradient: AppColors.primaryGradient,
                       ),
                     ),
-                    // Decorative circles
                     Positioned(
                       top: -60,
                       right: -30,
@@ -200,7 +253,6 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                         ),
                       ),
                     ),
-                    // Content
                     SafeArea(
                       child: Padding(
                         padding: const EdgeInsets.all(AppDimensions.paddingL),
@@ -217,7 +269,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                                     shape: BoxShape.circle,
                                   ),
                                   child: const CircleAvatar(
-                                    radius: 26, // Slightly larger
+                                    radius: 26,
                                     backgroundColor: Colors.white,
                                     child: Icon(
                                       Icons.medical_services,
@@ -229,18 +281,13 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                                 const SizedBox(width: AppDimensions.paddingM),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Text(
-                                        AppLocalizations.of(
-                                          context,
-                                        )!.get('hello'),
+                                        AppLocalizations.of(context)!.get('hello'),
                                         style: TextStyle(
-                                          color: Colors.white.withValues(
-                                            alpha: 0.9,
-                                          ),
+                                          color: Colors.white.withValues(alpha: 0.9),
                                           fontSize: 14,
                                         ),
                                       ),
@@ -248,30 +295,22 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                                         "Dr. ${_currentUser?.fullName ?? 'Doctor'}",
                                         style: const TextStyle(
                                           color: Colors.white,
-                                          fontSize: 22, // Larger font
+                                          fontSize: 22,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
                                       const SizedBox(height: 4),
-                                      // Date display
                                       Container(
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 8,
                                           vertical: 3,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: Colors.white.withValues(
-                                            alpha: 0.15,
-                                          ),
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
+                                          color: Colors.white.withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(12),
                                         ),
                                         child: Text(
-                                          AppLocalizations.of(context)!
-                                              .get('appointmentDate')
-                                              .split('•')
-                                              .first, // Reusing localized date part
+                                          "${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][DateTime.now().weekday - 1]}, ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][DateTime.now().month - 1]} ${DateTime.now().day}",
                                           style: const TextStyle(
                                             color: Colors.white,
                                             fontSize: 12,
@@ -293,10 +332,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                                       color: Colors.white,
                                     ),
                                     onPressed: () {
-                                      Navigator.pushNamed(
-                                        context,
-                                        '/notifications',
-                                      );
+                                      Navigator.pushNamed(context, '/notifications');
                                     },
                                   ),
                                 ),
@@ -330,10 +366,8 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                           index: 0,
                           child: StatCard(
                             icon: Icons.people,
-                            value: '${_mockPatients.length}',
-                            label: AppLocalizations.of(
-                              context,
-                            )!.get('totalPatients'),
+                            value: '${_patients.length}',
+                            label: AppLocalizations.of(context)!.get('totalPatients'),
                             color: AppColors.primaryBlue,
                           ),
                         ),
@@ -341,11 +375,8 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                           index: 1,
                           child: StatCard(
                             icon: Icons.warning_amber_rounded,
-                            value:
-                                '${_mockPatients.where((p) => p['status'] != 'Normal').length}',
-                            label: AppLocalizations.of(
-                              context,
-                            )!.get('needAttention'),
+                            value: '$warningCount',
+                            label: AppLocalizations.of(context)!.get('needAttention'),
                             color: Colors.orange,
                           ),
                         ),
@@ -354,9 +385,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                           child: StatCard(
                             icon: Icons.message,
                             value: '3',
-                            label: AppLocalizations.of(
-                              context,
-                            )!.get('pendingMessages'),
+                            label: AppLocalizations.of(context)!.get('pendingMessages'),
                             color: AppColors.accentTeal,
                           ),
                         ),
@@ -365,9 +394,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                           child: StatCard(
                             icon: Icons.calendar_today,
                             value: '2',
-                            label: AppLocalizations.of(
-                              context,
-                            )!.get('todayAppointments'),
+                            label: AppLocalizations.of(context)!.get('todayAppointments'),
                             color: Colors.purple,
                           ),
                         ),
@@ -376,25 +403,21 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                     const SizedBox(height: AppDimensions.paddingL),
 
                     // Critical Patients Alert
-                    if (_mockPatients.any((p) => p['status'] == 'Critical'))
+                    if (criticalCount > 0)
                       FadeSlideTransition(
                         delay: const Duration(milliseconds: 400),
                         child: AlertCard(
-                          title: AppLocalizations.of(
-                            context,
-                          )!.get('criticalAlert'),
+                          title: AppLocalizations.of(context)!.get('criticalAlert'),
                           message:
-                              '${_mockPatients.where((p) => p['status'] == 'Critical').length} ${AppLocalizations.of(context)!.get('patientsNeedAttention')}',
+                              '$criticalCount ${AppLocalizations.of(context)!.get('patientsNeedAttention')}',
                           buttonText: AppLocalizations.of(context)!.get('view'),
                           onTap: () {
-                            final criticalPatients =
-                                _mockPatients
-                                    .where((p) => p['status'] == 'Critical')
-                                    .toList();
-                            Navigator.pushNamed(
-                              context,
-                              '/patient_detail',
-                              arguments: criticalPatients.first,
+                            // Navigate to patients tab
+                            setState(() => _currentIndex = 1);
+                            _pageController.animateToPage(
+                              1,
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
                             );
                           },
                         ),
@@ -407,15 +430,11 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         SectionTitle(
-                          title: AppLocalizations.of(
-                            context,
-                          )!.get('recentPatients'),
+                          title: AppLocalizations.of(context)!.get('recentPatients'),
                         ),
                         TextButton(
                           onPressed: () {
-                            setState(() {
-                              _currentIndex = 1;
-                            });
+                            setState(() => _currentIndex = 1);
                             _pageController.animateToPage(
                               1,
                               duration: const Duration(milliseconds: 300),
@@ -433,31 +452,92 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                       ],
                     ),
                     const SizedBox(height: AppDimensions.paddingS),
-                    ..._mockPatients
-                        .take(3)
-                        .map(
-                          (patient) => PatientCard(
-                            name: patient['name'],
-                            email: patient['email'],
-                            status: patient['status'],
-                            heartRate: patient['heartRate'],
-                            lastUpdate: patient['lastUpdate'],
-                            onTap: () {
-                              Navigator.pushNamed(
-                                context,
-                                '/patient_detail',
-                                arguments: patient,
-                              );
-                            },
-                            onMessageTap: () {
-                              Navigator.pushNamed(
-                                context,
-                                '/patient_chat',
-                                arguments: patient,
-                              );
-                            },
+
+                    // Loading / Error / Real data
+                    if (_isLoadingPatients)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(32.0),
+                          child: CircularProgressIndicator(),
+                        ),
+                      )
+                    else if (_patientsError != null)
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(32.0),
+                          child: Column(
+                            children: [
+                              const Icon(Icons.error_outline, size: 48, color: AppColors.grey),
+                              const SizedBox(height: 12),
+                              Text(
+                                _patientsError!,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(color: AppColors.grey),
+                              ),
+                              const SizedBox(height: 12),
+                              TextButton(
+                                onPressed: () {
+                                  if (_currentUser?.backendId != null) {
+                                    _fetchPatients(_currentUser!.backendId!);
+                                  }
+                                },
+                                child: const Text('Retry'),
+                              ),
+                            ],
                           ),
                         ),
+                      )
+                    else if (_patients.isEmpty)
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(32.0),
+                          child: Column(
+                            children: [
+                              Icon(Icons.people_outline, size: 48, color: AppColors.primaryBlue.withValues(alpha: 0.3)),
+                              const SizedBox(height: 12),
+                              const Text(
+                                'No patients assigned yet.',
+                                style: TextStyle(color: AppColors.grey),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else
+                      ..._patients.take(3).map(
+                        (patient) => PatientCard(
+                          name: patient.fullName,
+                          email: patient.email,
+                          status: _priorityToStatus(patient.priority),
+                          heartRate: '--',
+                          lastUpdate: '',
+                          onTap: () {
+                            Navigator.pushNamed(
+                              context,
+                              '/patient_detail',
+                              arguments: {
+                                'id': patient.id.toString(),
+                                'backendId': patient.id,
+                                'name': patient.fullName,
+                                'email': patient.email,
+                                'status': _priorityToStatus(patient.priority),
+                                'heartRate': '--',
+                                'lastUpdate': '',
+                              },
+                            );
+                          },
+                          onMessageTap: () {
+                            Navigator.pushNamed(
+                              context,
+                              '/patient_chat',
+                              arguments: {
+                                'name': patient.fullName,
+                                'email': patient.email,
+                              },
+                            );
+                          },
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -481,6 +561,23 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
         backgroundColor: AppColors.white,
         elevation: 0,
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          if (_currentUser?.backendId == null) return;
+          AssignPatientSheet.show(
+            context,
+            doctorId: _currentUser!.backendId!,
+            onAssigned: () {
+              _fetchPatients(_currentUser!.backendId!);
+            },
+          );
+        },
+        icon: const Icon(Icons.person_add_rounded),
+        label: Text(AppLocalizations.of(context)!.get('assignPatient')),
+        backgroundColor: AppColors.primaryBlue,
+        foregroundColor: Colors.white,
+        elevation: 4,
+      ),
       body: DecoratedBackground(
         child: Column(
           children: [
@@ -502,23 +599,17 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                 child: TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
-                    hintText: AppLocalizations.of(
-                      context,
-                    )!.get('searchPatients'),
+                    hintText: AppLocalizations.of(context)!.get('searchPatients'),
                     hintStyle: const TextStyle(color: AppColors.grey),
                     prefixIcon: const Icon(Icons.search, color: AppColors.grey),
-                    suffixIcon:
-                        _searchQuery.isNotEmpty
-                            ? IconButton(
-                              icon: const Icon(
-                                Icons.clear,
-                                color: AppColors.grey,
-                              ),
-                              onPressed: () {
-                                _searchController.clear();
-                              },
-                            )
-                            : null,
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, color: AppColors.grey),
+                            onPressed: () {
+                              _searchController.clear();
+                            },
+                          )
+                        : null,
                     filled: true,
                     fillColor: AppColors.white,
                     border: OutlineInputBorder(
@@ -535,61 +626,96 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
             ),
             // Patient List
             Expanded(
-              child:
-                  _filteredPatients.isEmpty
+              child: _isLoadingPatients
+                  ? const Center(child: CircularProgressIndicator())
+                  : _patientsError != null
                       ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.search_off,
-                              size: 64,
-                              color: AppColors.primaryBlue.withValues(
-                                alpha: 0.1,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.error_outline, size: 64, color: AppColors.grey),
+                              const SizedBox(height: 16),
+                              Text(
+                                _patientsError!,
+                                style: const TextStyle(color: AppColors.grey, fontSize: 16),
                               ),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No patients found',
-                              style: TextStyle(
-                                color: AppColors.grey,
-                                fontSize: 16,
+                              const SizedBox(height: 16),
+                              TextButton(
+                                onPressed: () {
+                                  if (_currentUser?.backendId != null) {
+                                    _fetchPatients(_currentUser!.backendId!);
+                                  }
+                                },
+                                child: const Text('Retry'),
                               ),
+                            ],
+                          ),
+                        )
+                      : _filteredPatients.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.search_off,
+                                    size: 64,
+                                    color: AppColors.primaryBlue.withValues(alpha: 0.1),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    _searchQuery.isNotEmpty
+                                        ? 'No patients found'
+                                        : 'No patients assigned yet.',
+                                    style: const TextStyle(
+                                      color: AppColors.grey,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppDimensions.paddingM,
+                              ),
+                              itemCount: _filteredPatients.length,
+                              itemBuilder: (context, index) {
+                                final patient = _filteredPatients[index];
+                                return PatientCard(
+                                  name: patient.fullName,
+                                  email: patient.email,
+                                  status: _priorityToStatus(patient.priority),
+                                  heartRate: '--',
+                                  lastUpdate: '',
+                                  highlightText: _searchQuery,
+                                  onTap: () {
+                                    Navigator.pushNamed(
+                                      context,
+                                      '/patient_detail',
+                                      arguments: {
+                                        'id': patient.id.toString(),
+                                        'backendId': patient.id,
+                                        'name': patient.fullName,
+                                        'email': patient.email,
+                                        'status': _priorityToStatus(patient.priority),
+                                        'heartRate': '--',
+                                        'lastUpdate': '',
+                                      },
+                                    );
+                                  },
+                                  onMessageTap: () {
+                                    Navigator.pushNamed(
+                                      context,
+                                      '/patient_chat',
+                                      arguments: {
+                                        'name': patient.fullName,
+                                        'email': patient.email,
+                                      },
+                                    );
+                                  },
+                                );
+                              },
                             ),
-                          ],
-                        ),
-                      )
-                      : ListView.builder(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppDimensions.paddingM,
-                        ),
-                        itemCount: _filteredPatients.length,
-                        itemBuilder: (context, index) {
-                          final patient = _filteredPatients[index];
-                          return PatientCard(
-                            name: patient['name'],
-                            email: patient['email'],
-                            status: patient['status'],
-                            heartRate: patient['heartRate'],
-                            lastUpdate: patient['lastUpdate'],
-                            highlightText: _searchQuery,
-                            onTap: () {
-                              Navigator.pushNamed(
-                                context,
-                                '/patient_detail',
-                                arguments: patient,
-                              );
-                            },
-                            onMessageTap: () {
-                              Navigator.pushNamed(
-                                context,
-                                '/patient_chat',
-                                arguments: patient,
-                              );
-                            },
-                          );
-                        },
-                      ),
             ),
           ],
         ),

@@ -5,6 +5,8 @@ import '../../widgets/reusable/app_logo.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/storage_service.dart';
 import '../../services/firestore_service.dart';
+import '../../services/auth_service.dart';
+import '../../services/token_service.dart';
 import '../onboarding/onboarding_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -111,6 +113,17 @@ class _SplashScreenState extends State<SplashScreen>
           );
           // Proceed to role selection if fetch fails or no profile found
         }
+      }
+
+      // Refresh back-end JWT (it may have expired since last session)
+      try {
+        final hasToken = await TokenService.hasToken();
+        if (!hasToken) {
+          log("No JWT found, attempting auto-re-login...", name: 'SplashScreen');
+          await AuthService.refreshBackendToken();
+        }
+      } catch (e) {
+        log("JWT refresh failed (non-critical): $e", name: 'SplashScreen');
       }
 
       if (mounted) {

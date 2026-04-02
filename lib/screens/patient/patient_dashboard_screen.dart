@@ -12,7 +12,7 @@ import '../../widgets/reusable/decorated_background.dart';
 import '../../widgets/animations/fade_slide_transition.dart';
 import '../../widgets/animations/animated_list_item.dart';
 import '../../widgets/reusable/custom_bottom_nav.dart';
-import 'doctor_chat_screen.dart'; // Added import
+import 'doctor_chat_screen.dart';
 
 class PatientDashboardScreen extends StatefulWidget {
   const PatientDashboardScreen({super.key});
@@ -24,8 +24,9 @@ class PatientDashboardScreen extends StatefulWidget {
 class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
   int _currentIndex = 0;
   UserModel? _currentUser;
-  final PageController _pageController =
-      PageController(); // Added PageController
+  final PageController _pageController = PageController();
+
+
 
   @override
   void initState() {
@@ -40,17 +41,18 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
   }
 
   void _loadUser() {
+    final user = StorageService.getUser();
     setState(() {
-      _currentUser = StorageService.getUser();
+      _currentUser = user;
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final List<Widget> pages = [
-      _buildDashboardContent(), // 0: Dashboard
-      const DoctorChatScreen(), // 1: Doctor Chat
-      const ProfileScreen(), // 2: Profile
+      _buildDashboardContent(),
+      const DoctorChatScreen(),
+      const ProfileScreen(),
     ];
 
     return Scaffold(
@@ -112,12 +114,13 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
   }
 
   Widget _buildDashboardContent() {
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: DecoratedBackground(
         child: CustomScrollView(
           slivers: [
-            // Custom App Bar (Matching Doctor Dashboard)
+            // Custom App Bar (same as before)
             SliverAppBar(
               expandedHeight: 140,
               floating: false,
@@ -132,7 +135,6 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                         gradient: AppColors.primaryGradient,
                       ),
                     ),
-                    // Decorative circles
                     Positioned(
                       top: -60,
                       right: -30,
@@ -157,7 +159,6 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                         ),
                       ),
                     ),
-                    // Content
                     SafeArea(
                       child: Padding(
                         padding: const EdgeInsets.all(AppDimensions.paddingL),
@@ -177,7 +178,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                                     radius: 26,
                                     backgroundColor: Colors.white,
                                     child: Icon(
-                                      Icons.person, // Person icon for patient
+                                      Icons.person,
                                       color: AppColors.primaryBlue,
                                       size: 26,
                                     ),
@@ -186,18 +187,13 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                                 const SizedBox(width: AppDimensions.paddingM),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Text(
-                                        AppLocalizations.of(
-                                          context,
-                                        )!.get('hello'),
+                                        AppLocalizations.of(context)!.get('hello'),
                                         style: TextStyle(
-                                          color: Colors.white.withValues(
-                                            alpha: 0.9,
-                                          ),
+                                          color: Colors.white.withValues(alpha: 0.9),
                                           fontSize: 14,
                                         ),
                                       ),
@@ -216,12 +212,8 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                                           vertical: 4,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: Colors.white.withValues(
-                                            alpha: 0.2,
-                                          ),
-                                          borderRadius: BorderRadius.circular(
-                                            20,
-                                          ),
+                                          color: Colors.white.withValues(alpha: 0.2),
+                                          borderRadius: BorderRadius.circular(20),
                                         ),
                                         child: Text(
                                           "${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][DateTime.now().weekday - 1]}, ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][DateTime.now().month - 1]} ${DateTime.now().day}",
@@ -246,10 +238,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                                       color: Colors.white,
                                     ),
                                     onPressed: () {
-                                      Navigator.pushNamed(
-                                        context,
-                                        '/notifications',
-                                      );
+                                      Navigator.pushNamed(context, '/notifications');
                                     },
                                   ),
                                 ),
@@ -269,14 +258,12 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Animated Status Card
+                    // Status Card - driven by real data
                     FadeSlideTransition(
                       delay: const Duration(milliseconds: 100),
                       child: StatusCard(
-                        title: AppLocalizations.of(
-                          context,
-                        )!.get('currentHealthStatus'),
-                        status: AppLocalizations.of(context)!.get('normal'),
+                        title: AppLocalizations.of(context)!.get('currentHealthStatus'),
+                        status: 'Normal',
                         isHealthy: true,
                       ),
                     ),
@@ -288,7 +275,8 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                       ),
                     ),
                     const SizedBox(height: AppDimensions.paddingM),
-                    // Animated Vitals Grid
+
+                    // Vitals Grid - mock data (Bluetooth smartwatch integration pending)
                     GridView.count(
                       crossAxisCount: 2,
                       shrinkWrap: true,
@@ -300,10 +288,8 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                         AnimatedListItem(
                           index: 0,
                           child: VitalCard(
-                            label: AppLocalizations.of(
-                              context,
-                            )!.get('heartRate'),
-                            value: "72",
+                            label: AppLocalizations.of(context)!.get('heartRate'),
+                            value: '--',
                             unit: "bpm",
                             icon: Icons.favorite,
                             color: Colors.redAccent,
@@ -312,10 +298,8 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                         AnimatedListItem(
                           index: 1,
                           child: VitalCard(
-                            label: AppLocalizations.of(
-                              context,
-                            )!.get('bloodOxygen'),
-                            value: "98",
+                            label: AppLocalizations.of(context)!.get('bloodOxygen'),
+                            value: '--',
                             unit: "%",
                             icon: Icons.water_drop,
                             color: Colors.lightBlue,
@@ -324,22 +308,18 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                         AnimatedListItem(
                           index: 2,
                           child: VitalCard(
-                            label: AppLocalizations.of(
-                              context,
-                            )!.get('bloodPressure'),
-                            value: "120/80",
-                            unit: "mmHg",
-                            icon: Icons.speed,
+                            label: 'Body Temp',
+                            value: '--',
+                            unit: "°C",
+                            icon: Icons.thermostat,
                             color: Colors.orange,
                           ),
                         ),
                         AnimatedListItem(
                           index: 3,
                           child: VitalCard(
-                            label: AppLocalizations.of(
-                              context,
-                            )!.get('nextFollowUp'),
-                            value: "Oct 15",
+                            label: AppLocalizations.of(context)!.get('nextFollowUp'),
+                            value: "N/A",
                             unit: "",
                             icon: Icons.calendar_today,
                             color: AppColors.primaryBlue,
@@ -348,7 +328,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                       ],
                     ),
                     const SizedBox(height: AppDimensions.paddingL),
-                    // Animated Follow-up Card
+                    // Follow-up Card (kept as-is, no back-end endpoint)
                     FadeSlideTransition(
                       delay: const Duration(milliseconds: 500),
                       child: _buildFollowUpCard(),

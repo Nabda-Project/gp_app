@@ -1,0 +1,21 @@
+﻿Analyzing gp_app...                                             
+
+   info - Parameter 'message' could be a super parameter - lib\core\api\api_exceptions.dart:14:3 - use_super_parameters
+   info - Parameter 'message' could be a super parameter - lib\core\api\api_exceptions.dart:20:3 - use_super_parameters
+   info - Parameter 'message' could be a super parameter - lib\core\api\api_exceptions.dart:26:3 - use_super_parameters
+   info - Parameter 'message' could be a super parameter - lib\core\api\api_exceptions.dart:32:3 - use_super_parameters
+   info - Parameter 'message' could be a super parameter - lib\core\api\api_exceptions.dart:38:3 - use_super_parameters
+   info - Parameter 'message' could be a super parameter - lib\core\api\api_exceptions.dart:44:3 - use_super_parameters
+   info - The 'if' statement could be replaced by a null-aware assignment - lib\screens\auth\auth_screen.dart:156:9 - prefer_conditional_assignment
+warning - Unused import: '../../services/iot_api_service.dart' - lib\screens\doctor\doctor_dashboard_screen.dart:6:8 - unused_import
+warning - Unused import: '../../models/health_metric_model.dart' - lib\screens\doctor\doctor_dashboard_screen.dart:9:8 - unused_import
+
+flutter : 9 issues found. (ran in 6.0s)
+At line:1 char:1
++ flutter analyze 2>&1 | Out-File -Encoding utf8 
+d:\engineer\4th\GP\gp_ ...
++ ~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (9 issues found 
+   . (ran in 6.0s):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 

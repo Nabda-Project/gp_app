@@ -1,109 +1,276 @@
 import 'dart:developer';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import '../models/user_model.dart';
+import '../models/register_request.dart';
+import '../models/login_request.dart';
+import '../services/backend_auth_service.dart';
+import '../services/token_service.dart';
+import '../services/storage_service.dart';
+import '../services/firestore_service.dart';
+import '../core/api/api_exceptions.dart';
 
+/// Orchestrates the hybrid authentication flow:
+///   Firebase Auth (identity) + Back-end JWT (API access).
 class AuthService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
-  static final GoogleSignIn _googleSignIn = GoogleSignIn();
 
-  /// Get current Firebase user
-  static User? get currentUser => _auth.currentUser;
+  // =========================================================================
+  //  Sign Out (clears both Firebase session and back-end JWT)
+  // =========================================================================
 
-  /// Stream of auth state changes
-  static Stream<User?> get authStateChanges => _auth.authStateChanges();
-
-  // ==================== EMAIL/PASSWORD AUTH ====================
-
-  /// Sign in with email and password
-  static Future<UserCredential> signInWithEmail(
-    String email,
-    String password,
-  ) async {
-    return await _auth.signInWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
+  static Future<void> signOut() async {
+    await _auth.signOut();
+    await GoogleSignIn().signOut();
+    await TokenService.clearAll();
+    log('Signed out of Firebase + cleared JWT', name: 'AuthService');
   }
 
-  /// Register with email and password
-  static Future<UserCredential> registerWithEmail(
-    String email,
-    String password,
-  ) async {
-    return await _auth.createUserWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-  }
+  // =========================================================================
+  //  PASSWORD RESET (Firebase-only feature)
+  // =========================================================================
 
-  /// Send password reset email
   static Future<void> sendPasswordResetEmail(String email) async {
     await _auth.sendPasswordResetEmail(email: email);
   }
 
-  // ==================== GOOGLE SIGN-IN ====================
+  // =========================================================================
+  //  REGISTRATION — Back-end first, then Firebase
+  //  (if back-end rejects, we don't create a Firebase user)
+  // =========================================================================
 
-  /// Sign in with Google
-  static Future<UserCredential?> signInWithGoogle() async {
+  /// Full registration flow:
+  /// 1) POST /api/auth/register  → creates user in PostgreSQL
+  /// 2) Firebase createUser       → creates Firebase identity
+  /// 3) POST /api/auth/login      → obtains JWT
+  /// 4) Save user + JWT locally
+  ///
+  /// Returns the created [UserModel].
+  static Future<UserModel> registerWithEmailAndPassword({
+    required String fullName,
+    required String email,
+    required String password,
+    required String phoneNumber,
+    required String role, // 'Doctor' or 'Patient' (title-case from UI)
+  }) async {
+    // ── 1. Register on back-end (source of truth) ──
+    final backendRole = role == 'Doctor' ? 'DOCTOR' : 'PATIENT';
+    final registerRequest = RegisterRequest(
+      fullName: fullName,
+      email: email,
+      password: password,
+      phoneNumber: phoneNumber,
+      role: backendRole,
+    );
+
+    Map<String, dynamic> backendUser;
     try {
-      log("Starting Google Sign-In...", name: 'AuthService');
-      // Trigger the Google Sign-In flow
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-
-      if (googleUser == null) {
-        // User cancelled the sign-in
-        log("Google Sign-In cancelled by user.", name: 'AuthService');
-        return null;
-      }
-      log("Google Account obtained: ${googleUser.email}", name: 'AuthService');
-
-      // Obtain the auth details from the request
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-
-      log("Google Auth tokens obtained.", name: 'AuthService');
-
-      // Create a new credential
-      final OAuthCredential credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      // Sign in to Firebase with the Google credential
-      log(
-        "Signing in to Firebase with Google credential...",
-        name: 'AuthService',
-      );
-      final userCred = await _auth.signInWithCredential(credential);
-      log(
-        "Firebase Sign-In successful: ${userCred.user?.uid}",
-        name: 'AuthService',
-      );
-      return userCred;
+      backendUser = await BackendAuthService.register(registerRequest);
     } catch (e) {
-      log("Google Sign-In Error: $e", name: 'AuthService', error: e);
-      rethrow;
+      log('Back-end registration failed: $e', name: 'AuthService');
+      rethrow; // Let UI handle (e.g., ConflictException = email exists)
     }
+
+    // ── 2. Create Firebase user ──
+    UserCredential firebaseCred;
+    try {
+      firebaseCred = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      await firebaseCred.user?.updateDisplayName(fullName);
+    } on FirebaseAuthException catch (e) {
+      // If Firebase rejects (e.g., email already in use), we still have the
+      // back-end user created. This is acceptable – next login will reconcile.
+      log('Firebase createUser failed (back-end user exists): ${e.message}',
+          name: 'AuthService');
+      // Try to sign in instead (the back-end user was created successfully)
+      try {
+        firebaseCred = await _auth.signInWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+      } catch (signInError) {
+        rethrow;
+      }
+    }
+
+    // ── 3. Login to back-end to get JWT ──
+    final loginRequest = LoginRequest(email: email, password: password);
+    final authResponse = await BackendAuthService.login(loginRequest);
+    await TokenService.saveToken(authResponse.token);
+    await TokenService.saveCredentials(email, password);
+
+    // ── 4. Build UserModel and persist ──
+    final user = UserModel.fromBackendJson(
+      backendUser,
+      firebaseUid: firebaseCred.user?.uid,
+    );
+
+    // Save to Firestore (for existing Firestore-dependent features)
+    try {
+      await FirestoreService.saveUser(user);
+    } catch (e) {
+      log('Firestore save failed (non-critical): $e', name: 'AuthService');
+    }
+
+    // Save to local Hive storage
+    await StorageService.saveUser(user);
+
+    log('Registration complete: ${user.email} (backendId=${user.backendId})',
+        name: 'AuthService');
+    return user;
   }
 
-  // ==================== SIGN OUT ====================
+  // =========================================================================
+  //  EMAIL / PASSWORD LOGIN — Firebase first, then back-end JWT
+  // =========================================================================
 
-  /// Sign out from all providers
-  /// Sign out from all providers
-  static Future<void> signOut() async {
-    log("Executing signOut...", name: 'AuthService');
+  /// Hybrid login flow:
+  /// 1) Firebase signIn     → verifies identity
+  /// 2) POST /api/auth/login → obtains JWT
+  /// 3) Save JWT + refresh local user data
+  ///
+  /// Returns the [UserModel].
+  static Future<UserModel> signInWithEmailAndPassword({
+    required String email,
+    required String password,
+  }) async {
+    // ── 1. Firebase login ──
+    final UserCredential cred;
     try {
-      await _googleSignIn.signOut();
-      log("Google Sign-Out successful.", name: 'AuthService');
-    } catch (e) {
-      log("Google Sign-Out error (ignoring): $e", name: 'AuthService');
+      cred = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+    } on FirebaseAuthException catch (e) {
+      log('Firebase login failed: ${e.message}', name: 'AuthService');
+      rethrow;
     }
 
+    // ── 2. Back-end login for JWT ──
+    final loginRequest = LoginRequest(email: email, password: password);
     try {
-      await _auth.signOut();
-      log("Firebase Sign-Out successful.", name: 'AuthService');
+      final authResponse = await BackendAuthService.login(loginRequest);
+      await TokenService.saveToken(authResponse.token);
+      await TokenService.saveCredentials(email, password);
+      log('Back-end JWT obtained', name: 'AuthService');
     } catch (e) {
-      log("Firebase Sign-Out error: $e", name: 'AuthService', error: e);
+      log('Back-end login failed (JWT not obtained): $e', name: 'AuthService');
+      // Continue – user can still use Firebase-only features
+      // But API calls will fail without JWT
+    }
+
+    // ── 3. Load / refresh user data ──
+    UserModel? user = StorageService.getUser();
+    if (user == null || user.email != email) {
+      // Try loading from Firestore
+      try {
+        user = await FirestoreService.getUser(cred.user!.uid);
+      } catch (e) {
+        log('Firestore user fetch failed: $e', name: 'AuthService');
+      }
+    }
+
+    // If still no user data, create a minimal model from Firebase
+    user ??= UserModel(
+      id: cred.user!.uid,
+      fullName: cred.user!.displayName ?? 'User',
+      email: email,
+      role: 'Patient', // Default; will be corrected on role selection
+    );
+
+    await StorageService.saveUser(user);
+    return user;
+  }
+
+  // =========================================================================
+  //  GOOGLE SIGN-IN — Firebase, then auto-register on back-end
+  // =========================================================================
+
+  /// Google Sign-In hybrid flow:
+  /// 1) Google OAuth → Firebase credential
+  /// 2) Auto-register on back-end (with generated password)
+  /// 3) Login to back-end for JWT
+  ///
+  /// Returns `null` if user cancels the Google picker.
+  /// The user will be directed to role selection if no local profile exists.
+  static Future<UserCredential?> signInWithGoogle() async {
+    final googleUser = await GoogleSignIn().signIn();
+    if (googleUser == null) return null; // User cancelled
+
+    final googleAuth = await googleUser.authentication;
+    final credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+
+    final userCredential = await _auth.signInWithCredential(credential);
+    final firebaseUser = userCredential.user!;
+
+    // Auto-register on back-end if this is a new user
+    // Use Firebase UID as a deterministic "password" for the back-end account
+    final generatedPassword = 'GoogleAuth_${firebaseUser.uid}';
+    final email = firebaseUser.email ?? '';
+    final fullName = firebaseUser.displayName ?? 'User';
+
+    try {
+      // Try to register (will fail with 409 if user already exists – that's OK)
+      final registerRequest = RegisterRequest(
+        fullName: fullName,
+        email: email,
+        password: generatedPassword,
+        phoneNumber: '', // Not available from Google
+        role: 'PATIENT', // Default; can be changed via role selection
+      );
+      await BackendAuthService.register(registerRequest);
+      log('Google user registered on back-end', name: 'AuthService');
+    } on ConflictException {
+      log('Google user already exists on back-end', name: 'AuthService');
+    } catch (e) {
+      log('Google back-end registration failed: $e', name: 'AuthService');
+      // Continue – user can still use the app; JWT features may be limited
+    }
+
+    // Login to back-end for JWT
+    try {
+      final loginRequest = LoginRequest(
+        email: email,
+        password: generatedPassword,
+      );
+      final authResponse = await BackendAuthService.login(loginRequest);
+      await TokenService.saveToken(authResponse.token);
+      await TokenService.saveCredentials(email, generatedPassword);
+      log('Google user JWT obtained', name: 'AuthService');
+    } catch (e) {
+      log('Google back-end login failed: $e', name: 'AuthService');
+    }
+
+    return userCredential;
+  }
+
+  // =========================================================================
+  //  TOKEN REFRESH — Re-login when JWT expires (no refresh endpoint)
+  // =========================================================================
+
+  /// Attempt to re-login to the back-end using stored credentials.
+  /// Call this when a 401 is encountered.
+  static Future<bool> refreshBackendToken() async {
+    final credentials = await TokenService.getCredentials();
+    if (credentials == null) return false;
+
+    try {
+      final loginRequest = LoginRequest(
+        email: credentials['email']!,
+        password: credentials['password']!,
+      );
+      final authResponse = await BackendAuthService.login(loginRequest);
+      await TokenService.saveToken(authResponse.token);
+      log('JWT refreshed successfully', name: 'AuthService');
+      return true;
+    } catch (e) {
+      log('JWT refresh failed: $e', name: 'AuthService');
+      return false;
     }
   }
 }

@@ -6,11 +6,12 @@ import '../../widgets/reusable/custom_button.dart';
 import '../../services/storage_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
-import '../../models/user_model.dart';
+
 import '../../services/notification_service.dart';
 import '../../utils/app_localizations.dart';
 import '../../widgets/animations/fade_slide_transition.dart';
-import 'dart:developer'; // Added import for dart:developer
+import '../../core/api/api_exceptions.dart';
+
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -34,6 +35,7 @@ class _AuthScreenState extends State<AuthScreen>
   final _registerNameController = TextEditingController();
   final _registerEmailController = TextEditingController();
   final _registerLicenseController = TextEditingController();
+  final _registerPhoneController = TextEditingController();
 
   @override
   void initState() {
@@ -51,6 +53,7 @@ class _AuthScreenState extends State<AuthScreen>
     _registerNameController.dispose();
     _registerEmailController.dispose();
     _registerLicenseController.dispose();
+    _registerPhoneController.dispose();
     super.dispose();
   }
 
@@ -68,87 +71,6 @@ class _AuthScreenState extends State<AuthScreen>
     NotificationService.showSuccess(title: 'Success', message: message);
   }
 
-  Future<void> _handleAuthSuccess(
-    User firebaseUser,
-    String? role, {
-    String? license,
-  }) async {
-    log(
-      "DEBUG: _handleAuthSuccess started. Role: $role, User: ${firebaseUser.uid}",
-      name: 'AuthScreen',
-    );
-    try {
-      if (role != null) {
-        // REGISTRATION FLOW (Role is known)
-        log(
-          "DEBUG: Registration flow. Creating user model...",
-          name: 'AuthScreen',
-        );
-        final user = UserModel(
-          id: firebaseUser.uid,
-          fullName: firebaseUser.displayName ?? 'User',
-          email: firebaseUser.email ?? '',
-          role: role,
-          licenseNumber: license,
-        );
-
-        // Save to Firestore & Local Storage
-        log("DEBUG: Saving to Firestore...", name: 'AuthScreen');
-        await FirestoreService.saveUser(user);
-        log(
-          "DEBUG: Saved to Firestore. Saving to local storage...",
-          name: 'AuthScreen',
-        );
-        await StorageService.saveUser(user);
-        log("DEBUG: Saved to local storage. Navigating...", name: 'AuthScreen');
-
-        if (mounted) {
-          _navigateToDashboard(role);
-        }
-      } else {
-        // LOGIN FLOW (Role unknown, check Firestore)
-        log(
-          "DEBUG: Login flow. checking Firestore for user...",
-          name: 'AuthScreen',
-        );
-        final existingUser = await FirestoreService.getUser(firebaseUser.uid);
-        log(
-          "DEBUG: Firestore check complete. Result: ${existingUser?.role}",
-          name: 'AuthScreen',
-        );
-
-        if (existingUser != null) {
-          // Returning user -> Save to local storage & Navigate
-          log(
-            "DEBUG: Saving existing user to local storage...",
-            name: 'AuthScreen',
-          );
-          await StorageService.saveUser(existingUser);
-          if (mounted) {
-            _navigateToDashboard(existingUser.role);
-          }
-        } else {
-          // New user via Google/Phone -> Go to Role Selection
-          log(
-            "DEBUG: User not found in Firestore. Going to Role Selection.",
-            name: 'AuthScreen',
-          );
-          if (mounted) {
-            Navigator.pushReplacementNamed(context, '/role_selection');
-          }
-        }
-      }
-    } catch (e, stack) {
-      log(
-        "DEBUG: Error in _handleAuthSuccess: $e",
-        name: 'AuthScreen',
-        error: e,
-        stackTrace: stack,
-      );
-    } finally {
-      log("DEBUG: _handleAuthSuccess completed.", name: 'AuthScreen');
-    }
-  }
 
   void _navigateToDashboard(String role) {
     if (role == 'Doctor') {
@@ -164,15 +86,18 @@ class _AuthScreenState extends State<AuthScreen>
 
     _setLoading(true);
     try {
-      final credential = await AuthService.signInWithEmail(
-        _loginEmailController.text.trim(),
-        _loginPasswordController.text,
+      // Hybrid login: Firebase (identity) + Back-end (JWT)
+      final user = await AuthService.signInWithEmailAndPassword(
+        email: _loginEmailController.text.trim(),
+        password: _loginPasswordController.text,
       );
-      if (credential.user != null) {
-        await _handleAuthSuccess(credential.user!, null);
+      if (mounted) {
+        _navigateToDashboard(user.role);
       }
     } on FirebaseAuthException catch (e) {
       _showError(_getAuthErrorMessage(e.code));
+    } on ApiException catch (e) {
+      _showError(e.message);
     } catch (e) {
       _showError('Login failed: $e');
     } finally {
@@ -186,28 +111,32 @@ class _AuthScreenState extends State<AuthScreen>
 
     _setLoading(true);
     try {
-      final credential = await AuthService.registerWithEmail(
-        _registerEmailController.text.trim(),
-        _passwordController.text,
+      if (!mounted) return;
+      final role =
+          _selectedRole == AppLocalizations.of(context)!.get('doctor')
+              ? 'Doctor'
+              : 'Patient';
+
+      // Hybrid registration: Back-end first (source of truth), then Firebase
+      final user = await AuthService.registerWithEmailAndPassword(
+        fullName: _registerNameController.text.trim(),
+        email: _registerEmailController.text.trim(),
+        password: _passwordController.text,
+        phoneNumber: _registerPhoneController.text.trim(),
+        role: role,
       );
 
-      // Update display name
-      await credential.user?.updateDisplayName(
-        _registerNameController.text.trim(),
-      );
+      _showSuccess('Account created successfully!');
 
-      if (credential.user != null) {
-        if (!mounted) return;
-        final role =
-            _selectedRole == AppLocalizations.of(context)!.get('doctor')
-                ? 'Doctor'
-                : 'Patient';
-        final license =
-            role == 'Doctor' ? _registerLicenseController.text : null;
-        await _handleAuthSuccess(credential.user!, role, license: license);
+      if (mounted) {
+        _navigateToDashboard(user.role);
       }
+    } on ConflictException {
+      _showError('This email is already registered.');
     } on FirebaseAuthException catch (e) {
       _showError(_getAuthErrorMessage(e.code));
+    } on ApiException catch (e) {
+      _showError(e.message);
     } catch (e) {
       _showError('Registration failed: $e');
     } finally {
@@ -221,11 +150,27 @@ class _AuthScreenState extends State<AuthScreen>
     try {
       final credential = await AuthService.signInWithGoogle();
       if (credential?.user != null) {
-        // Pass null for role to trigger Firestore check
-        await _handleAuthSuccess(credential!.user!, null);
+        // Check if user profile exists in Firestore/local
+        final firebaseUser = credential!.user!;
+        var user = StorageService.getUser();
+        if (user == null) {
+          user = await FirestoreService.getUser(firebaseUser.uid);
+        }
+
+        if (user != null) {
+          await StorageService.saveUser(user);
+          if (mounted) _navigateToDashboard(user.role);
+        } else {
+          // New Google user → role selection
+          if (mounted) {
+            Navigator.pushReplacementNamed(context, '/role_selection');
+          }
+        }
       }
     } on FirebaseAuthException catch (e) {
       _showError(_getAuthErrorMessage(e.code));
+    } on ApiException catch (e) {
+      _showError(e.message);
     } catch (e) {
       _showError('Google Sign-In failed: $e');
     } finally {
@@ -504,7 +449,7 @@ class _AuthScreenState extends State<AuthScreen>
               FadeSlideTransition(
                 delay: const Duration(milliseconds: 400),
                 child: SizedBox(
-                  height: 520,
+                  height: 600,
                   child: TabBarView(
                     controller: _tabController,
                     children: [_buildLoginForm(), _buildRegisterForm()],
@@ -635,6 +580,20 @@ class _AuthScreenState extends State<AuthScreen>
               ),
               const SizedBox(height: AppDimensions.paddingM),
             ],
+
+            // Phone Number field (required by back-end)
+            _buildTextField(
+              'Phone Number',
+              Icons.phone,
+              controller: _registerPhoneController,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please enter your phone number';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: AppDimensions.paddingM),
 
             _buildTextField(
               AppLocalizations.of(context)!.get('emailAddress'),

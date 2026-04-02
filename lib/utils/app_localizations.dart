@@ -122,6 +122,21 @@ class AppLocalizations {
       'typePatientMessage': 'Write a message to patient...',
       'vitalsHistory': 'Vitals History',
 
+      // Assign Patient
+      'assignPatient': 'Assign Patient',
+      'searchByNameOrPhone': 'Search by name or phone number...',
+      'assign': 'Assign',
+      'noResults': 'No patients found',
+      'patientAssigned': 'Patient assigned successfully!',
+      'alreadyAssigned': 'Patient is already assigned to you',
+      'connectionError': 'Connection error. Please check your internet and try again.',
+      'serverError': 'Server error. Please try again later.',
+      'unexpectedError': 'Something went wrong. Please try again.',
+      'phone': 'Phone',
+      'retry': 'Retry',
+      'searching': 'Searching...',
+      'typeToSearch': 'Type a name or phone number to search',
+
       // Medical History
       'conditions': 'Conditions',
       'medications': 'Medications',
@@ -269,6 +284,21 @@ class AppLocalizations {
       'lastUpdate': 'آخر تحديث',
       'typePatientMessage': 'اكتب رسالة للمريض...',
       'vitalsHistory': 'سجل العلامات الحيوية',
+
+      // Assign Patient
+      'assignPatient': 'تعيين مريض',
+      'searchByNameOrPhone': 'ابحث بالاسم أو رقم الهاتف...',
+      'assign': 'تعيين',
+      'noResults': 'لم يتم العثور على مرضى',
+      'patientAssigned': 'تم تعيين المريض بنجاح!',
+      'alreadyAssigned': 'المريض معين لك بالفعل',
+      'connectionError': 'خطأ في الاتصال. يرجى التحقق من الإنترنت والمحاولة مرة أخرى.',
+      'serverError': 'خطأ في الخادم. يرجى المحاولة مرة أخرى لاحقاً.',
+      'unexpectedError': 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.',
+      'phone': 'هاتف',
+      'retry': 'إعادة المحاولة',
+      'searching': 'جاري البحث...',
+      'typeToSearch': 'اكتب اسم أو رقم هاتف للبحث',
 
       // Medical History
       'conditions': 'الحالات المرضية',

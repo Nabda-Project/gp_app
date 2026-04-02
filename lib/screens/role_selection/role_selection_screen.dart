@@ -5,9 +5,15 @@ import '../../widgets/reusable/custom_card.dart';
 import '../../widgets/reusable/custom_button.dart';
 import '../../services/firestore_service.dart';
 import '../../services/storage_service.dart';
+import '../../services/backend_auth_service.dart';
+import '../../services/token_service.dart';
 import '../../models/user_model.dart';
+import '../../models/register_request.dart';
+import '../../models/login_request.dart';
+import '../../core/api/api_exceptions.dart';
 import '../../widgets/animations/fade_slide_transition.dart';
 import '../../widgets/animations/animated_list_item.dart';
+import 'dart:developer';
 
 class RoleSelectionScreen extends StatefulWidget {
   const RoleSelectionScreen({super.key});
@@ -31,7 +37,6 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
 
     final firebaseUser = FirebaseAuth.instance.currentUser;
     if (firebaseUser == null) {
-      // Should not happen here, but handle safely
       Navigator.pushReplacementNamed(context, '/auth');
       return;
     }
@@ -39,18 +44,57 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
     setState(() => _isLoading = true);
 
     try {
+      final role = selectedRole == 'doctor' ? 'Doctor' : 'Patient';
+      final backendRole = role == 'Doctor' ? 'DOCTOR' : 'PATIENT';
+      final email = firebaseUser.email ?? '';
+      final fullName = firebaseUser.displayName ?? 'User';
+      // For Google Sign-In users, use deterministic password
+      final generatedPassword = 'GoogleAuth_${firebaseUser.uid}';
+
+      // Try to register on back-end (may already exist from Google Sign-In)
+      int? backendId;
+      try {
+        final registerRequest = RegisterRequest(
+          fullName: fullName,
+          email: email,
+          password: generatedPassword,
+          phoneNumber: '',
+          role: backendRole,
+        );
+        final backendUser = await BackendAuthService.register(registerRequest);
+        backendId = backendUser['id'] as int?;
+        log('Back-end registration successful', name: 'RoleSelection');
+      } on ConflictException {
+        log('User already exists on back-end', name: 'RoleSelection');
+      } catch (e) {
+        log('Back-end registration failed: $e', name: 'RoleSelection');
+      }
+
+      // Login to back-end for JWT
+      try {
+        final loginRequest = LoginRequest(
+          email: email,
+          password: generatedPassword,
+        );
+        final authResponse = await BackendAuthService.login(loginRequest);
+        await TokenService.saveToken(authResponse.token);
+        await TokenService.saveCredentials(email, generatedPassword);
+        log('JWT obtained', name: 'RoleSelection');
+      } catch (e) {
+        log('Back-end login failed: $e', name: 'RoleSelection');
+      }
+
       final user = UserModel(
         id: firebaseUser.uid,
-        fullName: firebaseUser.displayName ?? 'User',
-        email: firebaseUser.email ?? '',
-        role: selectedRole == 'doctor' ? 'Doctor' : 'Patient',
-        // Note: For doctors via Google, license might be collected later or assumed optional for now
+        backendId: backendId,
+        fullName: fullName,
+        email: email,
+        role: role,
       );
 
       // Save to Firestore
       await FirestoreService.saveUser(user);
-
-      // Save locally (optional, for offline/quick access)
+      // Save locally
       await StorageService.saveUser(user);
 
       if (mounted) {
