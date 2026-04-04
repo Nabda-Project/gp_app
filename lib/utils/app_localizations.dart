@@ -125,6 +125,10 @@ class AppLocalizations {
       // Assign Patient
       'assignPatient': 'Assign Patient',
       'searchByNameOrPhone': 'Search by name or phone number...',
+      'searchByNameLabel': 'By Name',
+      'searchByPhoneLabel': 'By Phone',
+      'searchByNameHint': 'Enter patient name...',
+      'searchByPhoneHint': 'Enter phone number...',
       'assign': 'Assign',
       'noResults': 'No patients found',
       'patientAssigned': 'Patient assigned successfully!',
@@ -136,6 +140,11 @@ class AppLocalizations {
       'retry': 'Retry',
       'searching': 'Searching...',
       'typeToSearch': 'Type a name or phone number to search',
+      'removePatient': 'Remove Patient',
+      'removePatientConfirm': 'Are you sure you want to remove this patient from your list?',
+      'removePatientSuccess': 'Patient removed successfully',
+      'removePatientError': 'Failed to remove patient. Please try again.',
+      'remove': 'Remove',
 
       // Medical History
       'conditions': 'Conditions',
@@ -288,6 +297,10 @@ class AppLocalizations {
       // Assign Patient
       'assignPatient': 'تعيين مريض',
       'searchByNameOrPhone': 'ابحث بالاسم أو رقم الهاتف...',
+      'searchByNameLabel': 'بالاسم',
+      'searchByPhoneLabel': 'بالهاتف',
+      'searchByNameHint': 'أدخل اسم المريض...',
+      'searchByPhoneHint': 'أدخل رقم الهاتف...',
       'assign': 'تعيين',
       'noResults': 'لم يتم العثور على مرضى',
       'patientAssigned': 'تم تعيين المريض بنجاح!',
@@ -299,6 +312,11 @@ class AppLocalizations {
       'retry': 'إعادة المحاولة',
       'searching': 'جاري البحث...',
       'typeToSearch': 'اكتب اسم أو رقم هاتف للبحث',
+      'removePatient': 'إزالة المريض',
+      'removePatientConfirm': 'هل أنت متأكد أنك تريد إزالة هذا المريض من قائمتك؟',
+      'removePatientSuccess': 'تم إزالة المريض بنجاح',
+      'removePatientError': 'فشل في إزالة المريض. يرجى المحاولة مرة أخرى.',
+      'remove': 'إزالة',
 
       // Medical History
       'conditions': 'الحالات المرضية',

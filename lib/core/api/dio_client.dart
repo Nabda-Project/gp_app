@@ -2,6 +2,8 @@ import 'dart:developer';
 import 'package:dio/dio.dart';
 import '../config/api_config.dart';
 import '../../services/token_service.dart';
+import '../../services/backend_auth_service.dart';
+import '../../models/login_request.dart';
 import 'api_exceptions.dart';
 
 /// Singleton Dio HTTP client with JWT interceptor and error mapping.
@@ -29,7 +31,7 @@ class DioClient {
       ),
     );
 
-    dio.interceptors.add(_AuthInterceptor());
+    dio.interceptors.add(_AuthInterceptor(dio));
     dio.interceptors.add(_LoggingInterceptor());
 
     return dio;
@@ -44,11 +46,23 @@ class DioClient {
 
 /// Injects the JWT `Authorization: Bearer <token>` header on every request
 /// (except auth endpoints which are public).
+///
+/// On 401 / 403 responses it automatically re-authenticates with the stored
+/// credentials, saves the fresh JWT, and **retries the original request** so
+/// the caller never sees the expired-token error.
 class _AuthInterceptor extends Interceptor {
+  _AuthInterceptor(this._dio);
+
+  final Dio _dio;
+
   static const _publicPaths = ['/auth/login', '/auth/register'];
 
+  /// Guard to prevent infinite re-login loops.
+  bool _isRefreshing = false;
+
   @override
-  void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
+  void onRequest(
+      RequestOptions options, RequestInterceptorHandler handler) async {
     final isPublic = _publicPaths.any((path) => options.path.contains(path));
 
     if (!isPublic) {
@@ -62,7 +76,51 @@ class _AuthInterceptor extends Interceptor {
   }
 
   @override
-  void onError(DioException err, ErrorInterceptorHandler handler) {
+  void onError(DioException err, ErrorInterceptorHandler handler) async {
+    final statusCode = err.response?.statusCode;
+    final isAuthEndpoint =
+        _publicPaths.any((p) => err.requestOptions.path.contains(p));
+
+    // ── Auto-refresh on 401 / 403 (expired JWT) ──
+    if ((statusCode == 401 || statusCode == 403) &&
+        !isAuthEndpoint &&
+        !_isRefreshing) {
+      _isRefreshing = true;
+      try {
+        final credentials = await TokenService.getCredentials();
+        if (credentials != null) {
+          log('JWT expired – re-authenticating automatically …',
+              name: 'DioClient');
+
+          final authResponse = await BackendAuthService.login(
+            LoginRequest(
+              email: credentials['email']!,
+              password: credentials['password']!,
+            ),
+          );
+
+          // Persist the fresh token.
+          await TokenService.saveToken(authResponse.token);
+
+          // Clone the original request with the new token and retry.
+          final opts = err.requestOptions;
+          opts.headers['Authorization'] = 'Bearer ${authResponse.token}';
+
+          log('Token refreshed – retrying ${opts.method} ${opts.path}',
+              name: 'DioClient');
+
+          final retryResponse = await _dio.fetch(opts);
+          _isRefreshing = false;
+          return handler.resolve(retryResponse);
+        }
+      } catch (e) {
+        log('Auto-refresh failed: $e', name: 'DioClient');
+      } finally {
+        _isRefreshing = false;
+      }
+    }
+
+    // ── Normal error mapping when refresh is not possible ──
     final apiException = _mapDioError(err);
     handler.reject(
       DioException(
@@ -83,7 +141,8 @@ class _AuthInterceptor extends Interceptor {
     }
 
     if (err.type == DioExceptionType.connectionError) {
-      return NetworkException('Cannot reach server. Please check your connection.');
+      return NetworkException(
+          'Cannot reach server. Please check your connection.');
     }
 
     final statusCode = err.response?.statusCode;
@@ -98,10 +157,12 @@ class _AuthInterceptor extends Interceptor {
 
     switch (statusCode) {
       case 400:
-        return ValidationException(message.isNotEmpty ? message : 'Invalid request.');
+        return ValidationException(
+            message.isNotEmpty ? message : 'Invalid request.');
       case 401:
-        return UnauthorizedException(
-            message.isNotEmpty ? message : 'Session expired. Please log in again.');
+        return UnauthorizedException(message.isNotEmpty
+            ? message
+            : 'Session expired. Please log in again.');
       case 403:
         return ForbiddenException(
             message.isNotEmpty ? message : 'You do not have permission.');
@@ -109,8 +170,9 @@ class _AuthInterceptor extends Interceptor {
         return ConflictException(
             message.isNotEmpty ? message : 'Resource already exists.');
       case 500:
-        return ServerException(
-            message.isNotEmpty ? message : 'Server error. Please try again later.');
+        return ServerException(message.isNotEmpty
+            ? message
+            : 'Server error. Please try again later.');
       default:
         return ApiException(
           message.isNotEmpty ? message : 'Unexpected error (HTTP $statusCode).',

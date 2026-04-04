@@ -9,10 +9,15 @@ class ApiEndpoints {
 
   // ─── Doctor ───
   static const String assignPatient = '/doctor/assign';
+  static const String removePatient = '/doctor/remove';
   static String doctorPatients(int doctorId) => '/doctor/patients/$doctorId';
-  static const String searchPatients = '/doctor/search';
+  static const String searchByName = '/doctor/search/name';
+  static const String searchByPhone = '/doctor/search/phone';
 
   // ─── IoT / Health Metrics ───
   static String uploadMetric(int patientId) => '/iot/upload/$patientId';
   static String metricHistory(int patientId) => '/iot/history/$patientId';
+
+  // ─── Patient ───
+  static String patientDoctor(int patientId) => '/patient/doctor/$patientId';
 }

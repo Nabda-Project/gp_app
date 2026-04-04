@@ -1,9 +1,12 @@
+import 'dart:developer';
 import 'package:flutter/material.dart';
 import '../../utils/constants.dart';
 import '../../widgets/reusable/status_card.dart';
 import '../../widgets/reusable/vital_card.dart';
 import '../../services/storage_service.dart';
+import '../../services/patient_api_service.dart';
 import '../../models/user_model.dart';
+import '../../models/doctor_info_model.dart';
 import '../profile/profile_screen.dart';
 import '../../widgets/reusable/section_title.dart';
 import '../../utils/app_localizations.dart';
@@ -24,9 +27,9 @@ class PatientDashboardScreen extends StatefulWidget {
 class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
   int _currentIndex = 0;
   UserModel? _currentUser;
+  DoctorInfoModel? _assignedDoctor;
+  bool _loadingDoctor = true;
   final PageController _pageController = PageController();
-
-
 
   @override
   void initState() {
@@ -40,18 +43,38 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     super.dispose();
   }
 
-  void _loadUser() {
+  Future<void> _loadUser() async {
     final user = StorageService.getUser();
     setState(() {
       _currentUser = user;
     });
+    await _fetchAssignedDoctor(user);
+  }
+
+  Future<void> _fetchAssignedDoctor(UserModel? user) async {
+    if (user?.backendId == null) {
+      setState(() => _loadingDoctor = false);
+      return;
+    }
+    try {
+      final doctor = await PatientApiService.getAssignedDoctor(user!.backendId!);
+      if (mounted) {
+        setState(() {
+          _assignedDoctor = doctor;
+          _loadingDoctor = false;
+        });
+      }
+    } catch (e) {
+      log('Could not load assigned doctor: $e', name: 'PatientDashboard');
+      if (mounted) setState(() => _loadingDoctor = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final List<Widget> pages = [
       _buildDashboardContent(),
-      const DoctorChatScreen(),
+      DoctorChatScreen(doctorName: _assignedDoctor?.fullName),
       const ProfileScreen(),
     ];
 
@@ -114,13 +137,12 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
   }
 
   Widget _buildDashboardContent() {
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: DecoratedBackground(
         child: CustomScrollView(
           slivers: [
-            // Custom App Bar (same as before)
+            // ── App Bar ──────────────────────────────────────────────────────
             SliverAppBar(
               expandedHeight: 140,
               floating: false,
@@ -252,13 +274,22 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                 ),
               ),
             ),
+
+            // ── Body ─────────────────────────────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.all(AppDimensions.paddingL),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Status Card - driven by real data
+                    // ── Assigned Doctor Card ──────────────────────────────
+                    FadeSlideTransition(
+                      delay: const Duration(milliseconds: 50),
+                      child: _buildDoctorCard(),
+                    ),
+                    const SizedBox(height: AppDimensions.paddingL),
+
+                    // Status Card
                     FadeSlideTransition(
                       delay: const Duration(milliseconds: 100),
                       child: StatusCard(
@@ -276,7 +307,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                     ),
                     const SizedBox(height: AppDimensions.paddingM),
 
-                    // Vitals Grid - mock data (Bluetooth smartwatch integration pending)
+                    // Vitals Grid – mock data (Bluetooth smartwatch pending)
                     GridView.count(
                       crossAxisCount: 2,
                       shrinkWrap: true,
@@ -328,7 +359,8 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                       ],
                     ),
                     const SizedBox(height: AppDimensions.paddingL),
-                    // Follow-up Card (kept as-is, no back-end endpoint)
+
+                    // Follow-up Card
                     FadeSlideTransition(
                       delay: const Duration(milliseconds: 500),
                       child: _buildFollowUpCard(),
@@ -339,6 +371,170 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // ── Assigned Doctor Card ───────────────────────────────────────────────────
+  Widget _buildDoctorCard() {
+    return GestureDetector(
+      onTap: _assignedDoctor == null
+          ? null
+          : () {
+              // Jump to the Chat tab
+              _pageController.animateToPage(
+                1,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+              );
+              setState(() => _currentIndex = 1);
+            },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppDimensions.paddingL),
+        decoration: BoxDecoration(
+          gradient: _assignedDoctor != null
+              ? const LinearGradient(
+                  colors: [Color(0xFF1565C0), Color(0xFF1E88E5)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          color: _assignedDoctor != null ? null : AppColors.white,
+          borderRadius: BorderRadius.circular(AppDimensions.radiusM),
+          boxShadow: [
+            BoxShadow(
+              color: _assignedDoctor != null
+                  ? const Color(0xFF1565C0).withValues(alpha: 0.35)
+                  : Colors.black.withValues(alpha: 0.05),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: _loadingDoctor
+            ? const Center(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.primaryBlue,
+                  ),
+                ),
+              )
+            : _assignedDoctor != null
+                ? Row(
+                    children: [
+                      // Avatar
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Text(
+                            _assignedDoctor!.fullName.isNotEmpty
+                                ? _assignedDoctor!.fullName[0].toUpperCase()
+                                : 'D',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: AppDimensions.paddingM),
+                      // Info
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Your Doctor',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Dr. ${_assignedDoctor!.fullName}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _assignedDoctor!.email,
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Chat icon
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.chat_bubble_outline_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryBlue.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.person_search_outlined,
+                          color: AppColors.primaryBlue,
+                        ),
+                      ),
+                      const SizedBox(width: AppDimensions.paddingM),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'No doctor assigned yet',
+                              style: TextStyle(
+                                color: AppColors.darkBlue.withValues(alpha: 0.8),
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Your care team will be shown here once assigned.',
+                              style: TextStyle(
+                                color: AppColors.darkBlue.withValues(alpha: 0.5),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
       ),
     );
   }

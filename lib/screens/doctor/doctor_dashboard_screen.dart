@@ -130,6 +130,182 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
     }
   }
 
+  /// Refreshes the patient list silently in the background —
+  /// the existing list stays visible (no spinner) while the API call runs.
+  Future<void> _silentRefreshPatients(int doctorId) async {
+    try {
+      final patients = await DoctorApiService.getAssignedPatients(doctorId);
+      if (mounted) {
+        setState(() {
+          _patients = patients;
+        });
+      }
+    } catch (e) {
+      log('Silent refresh failed: $e', name: 'DoctorDashboard');
+      // Swallow silently — user still sees the optimistic update.
+    }
+  }
+
+  /// Show a confirmation dialog then remove the patient (optimistic update).
+  Future<void> _removePatient(PatientResponseModel patient) async {
+    final doctorId = _currentUser?.backendId;
+    if (doctorId == null) return;
+    final loc = AppLocalizations.of(context)!;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(Icons.person_remove_rounded, color: AppColors.error, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                loc.get('removePatient'),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: AppColors.darkBlue,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              loc.get('removePatientConfirm'),
+              style: const TextStyle(color: AppColors.grey, fontSize: 14),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.lightGrey.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor: AppColors.primaryBlue.withValues(alpha: 0.1),
+                    child: Text(
+                      patient.fullName.isNotEmpty ? patient.fullName[0].toUpperCase() : '?',
+                      style: const TextStyle(
+                        color: AppColors.primaryBlue,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          patient.fullName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.darkBlue,
+                          ),
+                        ),
+                        Text(
+                          patient.email,
+                          style: const TextStyle(color: AppColors.grey, fontSize: 12),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(
+              loc.get('cancel'),
+              style: const TextStyle(color: AppColors.grey),
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            icon: const Icon(Icons.delete_rounded, size: 18),
+            label: Text(loc.get('remove')),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // Optimistic removal
+    setState(() {
+      _patients = _patients.where((p) => p.id != patient.id).toList();
+    });
+
+    try {
+      await DoctorApiService.removePatient(doctorId, patient.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    loc.get('removePatientSuccess'),
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: AppColors.accentTeal,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+      }
+    } catch (e) {
+      log('Failed to remove patient: $e', name: 'DoctorDashboard');
+      // Rollback optimistic change
+      if (mounted) {
+        setState(() {
+          _patients = [..._patients, patient];
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(loc.get('removePatientError')),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+      }
+    }
+  }
+
   List<PatientResponseModel> get _filteredPatients {
     if (_searchQuery.isEmpty) {
       return _patients;
@@ -536,6 +712,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                               },
                             );
                           },
+                          onDeleteTap: () => _removePatient(patient),
                         ),
                       ),
                   ],
@@ -567,8 +744,13 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
           AssignPatientSheet.show(
             context,
             doctorId: _currentUser!.backendId!,
-            onAssigned: () {
-              _fetchPatients(_currentUser!.backendId!);
+            onAssigned: (PatientResponseModel newPatient) {
+              // Optimistic update — add immediately without waiting for the API.
+              setState(() {
+                _patients = [..._patients, newPatient];
+              });
+              // Then silently sync with server in background.
+              _silentRefreshPatients(_currentUser!.backendId!);
             },
           );
         },
@@ -681,38 +863,72 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                               itemCount: _filteredPatients.length,
                               itemBuilder: (context, index) {
                                 final patient = _filteredPatients[index];
-                                return PatientCard(
-                                  name: patient.fullName,
-                                  email: patient.email,
-                                  status: _priorityToStatus(patient.priority),
-                                  heartRate: '--',
-                                  lastUpdate: '',
-                                  highlightText: _searchQuery,
-                                  onTap: () {
-                                    Navigator.pushNamed(
-                                      context,
-                                      '/patient_detail',
-                                      arguments: {
-                                        'id': patient.id.toString(),
-                                        'backendId': patient.id,
-                                        'name': patient.fullName,
-                                        'email': patient.email,
-                                        'status': _priorityToStatus(patient.priority),
-                                        'heartRate': '--',
-                                        'lastUpdate': '',
-                                      },
-                                    );
+                                return Dismissible(
+                                  key: ValueKey(patient.id),
+                                  direction: DismissDirection.endToStart,
+                                  confirmDismiss: (_) async {
+                                    await _removePatient(patient);
+                                    // always return false — _removePatient manages state
+                                    return false;
                                   },
-                                  onMessageTap: () {
-                                    Navigator.pushNamed(
-                                      context,
-                                      '/patient_chat',
-                                      arguments: {
-                                        'name': patient.fullName,
-                                        'email': patient.email,
-                                      },
-                                    );
-                                  },
+                                  background: Container(
+                                    margin: const EdgeInsets.only(bottom: AppDimensions.paddingM),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.error,
+                                      borderRadius: BorderRadius.circular(AppDimensions.radiusM),
+                                    ),
+                                    alignment: Alignment.centerRight,
+                                    padding: const EdgeInsets.only(right: 20),
+                                    child: const Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.delete_rounded, color: Colors.white, size: 26),
+                                        SizedBox(height: 4),
+                                        Text(
+                                          'Remove',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  child: PatientCard(
+                                    name: patient.fullName,
+                                    email: patient.email,
+                                    status: _priorityToStatus(patient.priority),
+                                    heartRate: '--',
+                                    lastUpdate: '',
+                                    highlightText: _searchQuery,
+                                    onTap: () {
+                                      Navigator.pushNamed(
+                                        context,
+                                        '/patient_detail',
+                                        arguments: {
+                                          'id': patient.id.toString(),
+                                          'backendId': patient.id,
+                                          'name': patient.fullName,
+                                          'email': patient.email,
+                                          'status': _priorityToStatus(patient.priority),
+                                          'heartRate': '--',
+                                          'lastUpdate': '',
+                                        },
+                                      );
+                                    },
+                                    onMessageTap: () {
+                                      Navigator.pushNamed(
+                                        context,
+                                        '/patient_chat',
+                                        arguments: {
+                                          'name': patient.fullName,
+                                          'email': patient.email,
+                                        },
+                                      );
+                                    },
+                                    onDeleteTap: () => _removePatient(patient),
+                                  ),
                                 );
                               },
                             ),

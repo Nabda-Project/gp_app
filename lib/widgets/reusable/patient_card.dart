@@ -9,6 +9,7 @@ class PatientCard extends StatelessWidget {
   final String lastUpdate;
   final VoidCallback? onTap;
   final VoidCallback? onMessageTap;
+  final VoidCallback? onDeleteTap;
   final String? highlightText;
 
   const PatientCard({
@@ -20,6 +21,7 @@ class PatientCard extends StatelessWidget {
     required this.lastUpdate,
     this.onTap,
     this.onMessageTap,
+    this.onDeleteTap,
     this.highlightText,
   });
 
@@ -152,6 +154,26 @@ class PatientCard extends StatelessWidget {
                         padding: EdgeInsets.zero,
                         onPressed: onMessageTap,
                       ),
+                    if (onDeleteTap != null) ...[  
+                      const SizedBox(height: 6),
+                      IconButton(
+                        icon: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.error.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            Icons.delete_rounded,
+                            color: AppColors.error,
+                            size: 18,
+                          ),
+                        ),
+                        constraints: const BoxConstraints(),
+                        padding: EdgeInsets.zero,
+                        onPressed: onDeleteTap,
+                      ),
+                    ],
                   ],
                 ),
               ],

@@ -6,14 +6,21 @@ import '../../utils/constants.dart';
 import '../../utils/app_localizations.dart';
 import '../../services/doctor_api_service.dart';
 import '../../models/patient_search_model.dart';
+import '../../models/patient_response_model.dart';
 import '../../core/api/api_exceptions.dart';
+
+/// Search mode: by patient name or by phone number.
+enum _SearchMode { name, phone }
 
 /// A bottom sheet that lets a doctor search for patients by name or phone
 /// number and assign them. Shows user-friendly error messages for network
 /// and server problems.
 class AssignPatientSheet extends StatefulWidget {
   final int doctorId;
-  final VoidCallback? onAssigned;
+
+  /// Called after a successful assignment, passing the newly assigned patient
+  /// so the caller can update its list immediately (optimistic update).
+  final void Function(PatientResponseModel patient)? onAssigned;
 
   const AssignPatientSheet({
     super.key,
@@ -25,7 +32,7 @@ class AssignPatientSheet extends StatefulWidget {
   static Future<void> show(
     BuildContext context, {
     required int doctorId,
-    VoidCallback? onAssigned,
+    void Function(PatientResponseModel patient)? onAssigned,
   }) {
     return showModalBottomSheet(
       context: context,
@@ -46,6 +53,7 @@ class _AssignPatientSheetState extends State<AssignPatientSheet> {
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounce;
 
+  _SearchMode _searchMode = _SearchMode.name;
   List<PatientSearchModel> _results = [];
   bool _isSearching = false;
   bool _isAssigning = false;
@@ -81,10 +89,12 @@ class _AssignPatientSheetState extends State<AssignPatientSheet> {
     });
 
     try {
-      final results = await DoctorApiService.searchPatients(
-        widget.doctorId,
-        query,
-      );
+      final List<PatientSearchModel> results;
+      if (_searchMode == _SearchMode.name) {
+        results = await DoctorApiService.searchByName(widget.doctorId, query);
+      } else {
+        results = await DoctorApiService.searchByPhone(widget.doctorId, query);
+      }
       if (mounted) {
         setState(() {
           _results = results;
@@ -149,6 +159,12 @@ class _AssignPatientSheetState extends State<AssignPatientSheet> {
     try {
       await DoctorApiService.assignPatient(widget.doctorId, patient.id);
       if (mounted) {
+        final assigned = PatientResponseModel(
+          id: patient.id,
+          fullName: patient.fullName,
+          email: patient.email,
+          priority: 'MEDIUM', // default priority on new assignment
+        );
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -172,7 +188,7 @@ class _AssignPatientSheetState extends State<AssignPatientSheet> {
             margin: const EdgeInsets.all(16),
           ),
         );
-        widget.onAssigned?.call();
+        widget.onAssigned?.call(assigned);
       }
     } on NetworkException catch (e) {
       log('Network error during assign: ${e.message}', name: 'AssignPatient');
@@ -191,7 +207,6 @@ class _AssignPatientSheetState extends State<AssignPatientSheet> {
         });
       }
     } on ValidationException catch (e) {
-      // e.g. "Patient is already assigned to this doctor"
       log('Validation error during assign: ${e.message}', name: 'AssignPatient');
       if (mounted) {
         setState(() {
@@ -228,6 +243,21 @@ class _AssignPatientSheetState extends State<AssignPatientSheet> {
 
   String _connectionErrorMessage() {
     return AppLocalizations.of(context)!.get('connectionError');
+  }
+
+  void _switchMode(_SearchMode mode) {
+    if (_searchMode == mode) return;
+    setState(() {
+      _searchMode = mode;
+      _results = [];
+      _hasSearched = false;
+      _errorMessage = null;
+    });
+    // Re-trigger search if there's already text
+    final query = _searchController.text.trim();
+    if (query.length >= 2) {
+      _performSearch(query);
+    }
   }
 
   @override
@@ -303,6 +333,40 @@ class _AssignPatientSheetState extends State<AssignPatientSheet> {
 
           const SizedBox(height: 16),
 
+          // Search mode toggle
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.lightGrey.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.all(4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _buildModeButton(
+                      icon: Icons.person_outlined,
+                      label: loc.get('searchByNameLabel'),
+                      isActive: _searchMode == _SearchMode.name,
+                      onTap: () => _switchMode(_SearchMode.name),
+                    ),
+                  ),
+                  Expanded(
+                    child: _buildModeButton(
+                      icon: Icons.phone_outlined,
+                      label: loc.get('searchByPhoneLabel'),
+                      isActive: _searchMode == _SearchMode.phone,
+                      onTap: () => _switchMode(_SearchMode.phone),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
           // Search field
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -322,10 +386,18 @@ class _AssignPatientSheetState extends State<AssignPatientSheet> {
                 controller: _searchController,
                 onChanged: _onQueryChanged,
                 autofocus: true,
+                keyboardType: _searchMode == _SearchMode.phone
+                    ? TextInputType.phone
+                    : TextInputType.text,
                 decoration: InputDecoration(
-                  hintText: loc.get('searchByNameOrPhone'),
+                  hintText: _searchMode == _SearchMode.name
+                      ? loc.get('searchByNameHint')
+                      : loc.get('searchByPhoneHint'),
                   hintStyle: const TextStyle(color: AppColors.grey, fontSize: 14),
-                  prefixIcon: const Icon(Icons.search, color: AppColors.primaryBlue),
+                  prefixIcon: Icon(
+                    _searchMode == _SearchMode.name ? Icons.search : Icons.phone,
+                    color: AppColors.primaryBlue,
+                  ),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
                           icon: const Icon(Icons.clear, color: AppColors.grey),
@@ -414,6 +486,53 @@ class _AssignPatientSheetState extends State<AssignPatientSheet> {
           // Bottom safe area
           SizedBox(height: MediaQuery.of(context).padding.bottom + 8),
         ],
+      ),
+    );
+  }
+
+  Widget _buildModeButton({
+    required IconData icon,
+    required String label,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: isActive ? AppColors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: isActive
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 18,
+              color: isActive ? AppColors.primaryBlue : AppColors.grey,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                color: isActive ? AppColors.primaryBlue : AppColors.grey,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

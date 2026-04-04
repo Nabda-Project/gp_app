@@ -25,6 +25,7 @@ class DoctorApiService {
           'doctorId': doctorId,
           'patientId': patientId,
         },
+        options: Options(responseType: ResponseType.bytes),
       );
       log('Patient assigned successfully', name: 'DoctorApiService');
     } on DioException catch (e) {
@@ -58,24 +59,24 @@ class DoctorApiService {
     }
   }
 
-  /// Search for patients by name or phone number.
+  /// Search for patients by name.
   ///
-  /// Corresponds to `GET /api/doctor/search?doctorId=X&query=Y`.
+  /// Corresponds to `GET /api/doctor/search/name?doctorId=X&name=Y`.
   /// Returns patients NOT yet assigned to this doctor.
-  static Future<List<PatientSearchModel>> searchPatients(
+  static Future<List<PatientSearchModel>> searchByName(
     int doctorId,
-    String query,
+    String name,
   ) async {
     try {
       log(
-        'Searching patients for doctor $doctorId with query "$query"',
+        'Searching patients by name for doctor $doctorId with name "$name"',
         name: 'DoctorApiService',
       );
       final response = await DioClient.instance.get(
-        ApiEndpoints.searchPatients,
+        ApiEndpoints.searchByName,
         queryParameters: {
           'doctorId': doctorId,
-          'query': query,
+          'name': name,
         },
       );
 
@@ -84,10 +85,70 @@ class DoctorApiService {
           .map((item) => PatientSearchModel.fromJson(item as Map<String, dynamic>))
           .toList();
 
-      log('Found ${results.length} patients', name: 'DoctorApiService');
+      log('Found ${results.length} patients by name', name: 'DoctorApiService');
       return results;
     } on DioException catch (e) {
-      log('Search patients failed: ${e.message}', name: 'DoctorApiService');
+      log('Search by name failed: ${e.message}', name: 'DoctorApiService');
+      if (e.error is ApiException) throw e.error!;
+      rethrow;
+    }
+  }
+
+  /// Search for patients by phone number.
+  ///
+  /// Corresponds to `GET /api/doctor/search/phone?doctorId=X&phone=Y`.
+  /// Returns patients NOT yet assigned to this doctor.
+  static Future<List<PatientSearchModel>> searchByPhone(
+    int doctorId,
+    String phone,
+  ) async {
+    try {
+      log(
+        'Searching patients by phone for doctor $doctorId with phone "$phone"',
+        name: 'DoctorApiService',
+      );
+      final response = await DioClient.instance.get(
+        ApiEndpoints.searchByPhone,
+        queryParameters: {
+          'doctorId': doctorId,
+          'phone': phone,
+        },
+      );
+
+      final List<dynamic> data = response.data as List<dynamic>;
+      final results = data
+          .map((item) => PatientSearchModel.fromJson(item as Map<String, dynamic>))
+          .toList();
+
+      log('Found ${results.length} patients by phone', name: 'DoctorApiService');
+      return results;
+    } on DioException catch (e) {
+      log('Search by phone failed: ${e.message}', name: 'DoctorApiService');
+      if (e.error is ApiException) throw e.error!;
+      rethrow;
+    }
+  }
+
+  /// Remove (unlink) a patient from a doctor.
+  ///
+  /// Corresponds to `DELETE /api/doctor/remove?doctorId=X&patientId=Y`.
+  static Future<void> removePatient(int doctorId, int patientId) async {
+    try {
+      log(
+        'Removing patient $patientId from doctor $doctorId',
+        name: 'DoctorApiService',
+      );
+      await DioClient.instance.delete(
+        ApiEndpoints.removePatient,
+        queryParameters: {
+          'doctorId': doctorId,
+          'patientId': patientId,
+        },
+        options: Options(responseType: ResponseType.bytes),
+      );
+      log('Patient removed successfully', name: 'DoctorApiService');
+    } on DioException catch (e) {
+      log('Patient removal failed: ${e.message}', name: 'DoctorApiService');
       if (e.error is ApiException) throw e.error!;
       rethrow;
     }

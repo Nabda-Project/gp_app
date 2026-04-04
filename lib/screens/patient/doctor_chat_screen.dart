@@ -12,7 +12,9 @@ class Message {
 }
 
 class DoctorChatScreen extends StatefulWidget {
-  const DoctorChatScreen({super.key});
+  final String? doctorName;
+
+  const DoctorChatScreen({super.key, this.doctorName});
 
   @override
   State<DoctorChatScreen> createState() => _DoctorChatScreenState();
@@ -39,30 +41,42 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
 
     setState(() {
       _messages.add(Message(text: _controller.text, isUser: true));
-      // Mock doctor reply after a delay could be added here,
-      // but key requirement is just to be able to "chat" (send messages).
       _controller.clear();
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final displayName = widget.doctorName != null
+        ? 'Dr. ${widget.doctorName}'
+        : AppLocalizations.of(context)!.get('doctorChatTitle');
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Row(
           children: [
-            const CircleAvatar(
-              backgroundImage: NetworkImage(
-                'https://i.pravatar.cc/150?u=a042581f4e29026024d',
-              ), // Mock doctor image or asset
+            CircleAvatar(
               radius: 16,
+              backgroundColor: AppColors.primaryBlue.withValues(alpha: 0.15),
+              child: Text(
+                widget.doctorName?.isNotEmpty == true
+                    ? widget.doctorName![0].toUpperCase()
+                    : 'D',
+                style: const TextStyle(
+                  color: AppColors.primaryBlue,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
             ),
             const SizedBox(width: 8),
-            Text(
-              // Removing expanded to avoid potential overflow if title is long, or wrap in Flexible
-              AppLocalizations.of(context)!.get('doctorChatTitle'),
-              style: const TextStyle(color: AppColors.darkBlue, fontSize: 16),
+            Flexible(
+              child: Text(
+                displayName,
+                style: const TextStyle(color: AppColors.darkBlue, fontSize: 16),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ),
