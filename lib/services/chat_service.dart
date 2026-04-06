@@ -1,0 +1,280 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:developer';
+
+import 'package:stomp_dart_client/stomp_dart_client.dart';
+
+import '../core/api/api_endpoints.dart';
+import '../core/api/dio_client.dart';
+import '../core/config/api_config.dart';
+import '../models/chat_contact_model.dart';
+import '../models/chat_message_model.dart';
+import 'presence_service.dart';
+import 'token_service.dart';
+
+/// Manages the STOMP WebSocket connection for real-time chat.
+///
+/// Usage:
+/// ```dart
+/// final chatService = ChatService(currentUserId: myId);
+/// await chatService.connect();
+/// chatService.messages.listen((msg) => print(msg.content));
+/// chatService.sendMessage(receiverId: 5, content: 'Hello!');
+/// chatService.disconnect();
+/// ```
+class ChatService {
+  ChatService({required this.currentUserId});
+
+  final int currentUserId;
+
+  StompClient? _stompClient;
+  final _messageController = StreamController<ChatMessageModel>.broadcast();
+  final _statusController = StreamController<Map<String, dynamic>>.broadcast();
+  Completer<void>? _connectCompleter;
+
+  /// Stream of incoming real-time messages.
+  Stream<ChatMessageModel> get messages => _messageController.stream;
+
+  /// Stream of incoming status updates (read/delivered).
+  Stream<Map<String, dynamic>> get statuses => _statusController.stream;
+
+  /// Whether the STOMP client is currently connected.
+  bool get isConnected => _stompClient?.connected ?? false;
+
+  /// Connect to the WebSocket and subscribe to the user's message queue.
+  /// Returns a Future that completes when the STOMP connection is established.
+  Future<void> connect() async {
+    if (isConnected) return;
+
+    final token = await TokenService.getToken();
+    if (token == null || token.isEmpty) {
+      log('ChatService: No JWT token available, cannot connect.',
+          name: 'ChatService');
+      return;
+    }
+
+    _connectCompleter = Completer<void>();
+
+    _stompClient = StompClient(
+      config: StompConfig.sockJS(
+        url: 'http://${ApiConfig.host}:${ApiConfig.port}/ws',
+        stompConnectHeaders: {
+          'Authorization': 'Bearer $token',
+        },
+        webSocketConnectHeaders: {
+          'Authorization': 'Bearer $token',
+        },
+        onConnect: _onConnect,
+        onDisconnect: _onDisconnect,
+        onWebSocketError: (error) {
+          log('WebSocket error: $error', name: 'ChatService');
+          if (_connectCompleter != null && !_connectCompleter!.isCompleted) {
+            _connectCompleter!.complete();
+          }
+        },
+        onStompError: (frame) {
+          log('STOMP error: ${frame.body}', name: 'ChatService');
+          if (_connectCompleter != null && !_connectCompleter!.isCompleted) {
+            _connectCompleter!.complete();
+          }
+        },
+        // Reconnect every 5 s on disconnect
+        reconnectDelay: const Duration(seconds: 5),
+      ),
+    );
+
+    _stompClient!.activate();
+    log('ChatService: Activating STOMP client for user $currentUserId…', name: 'ChatService');
+
+    // Wait for actual connection (with timeout)
+    try {
+      await _connectCompleter!.future.timeout(const Duration(seconds: 10));
+    } catch (e) {
+      log('ChatService: Connection timeout or error: $e', name: 'ChatService');
+    }
+  }
+
+  void _onConnect(StompFrame frame) {
+    log('ChatService: Connected to WebSocket!', name: 'ChatService');
+
+    // Start presence heartbeat so this user is shown as online
+    PresenceService.startHeartbeat();
+
+    // Subscribe to the user's personal message queue
+    const dest = '/user/queue/messages';
+    log('ChatService: Subscribing to $dest', name: 'ChatService');
+    _stompClient!.subscribe(
+      destination: dest,
+      callback: (StompFrame frame) {
+        if (frame.body != null) {
+          try {
+            final json = jsonDecode(frame.body!) as Map<String, dynamic>;
+            final message = ChatMessageModel.fromJson(json);
+            _messageController.add(message);
+            // If the message is received by ME, and I'm active, immediately mark it as delivered.
+            if (message.receiverId == currentUserId && message.senderId != currentUserId) {
+              markAsDelivered(message.senderId);
+            }
+            log('ChatService: Received message from ${message.senderId}',
+                name: 'ChatService');
+          } catch (e) {
+            log('ChatService: Failed to parse message: $e',
+                name: 'ChatService');
+          }
+        }
+      },
+    );
+
+    // Subscribe to the user's personal status queue
+    const statusDest = '/user/queue/chat-status';
+    log('ChatService: Subscribing to $statusDest', name: 'ChatService');
+    _stompClient!.subscribe(
+      destination: statusDest,
+      callback: (StompFrame frame) {
+        if (frame.body != null) {
+          try {
+            final json = jsonDecode(frame.body!) as Map<String, dynamic>;
+            _statusController.add(json);
+            log('ChatService: Received status ${json["status"]} for receiver ${json["receiverId"]}',
+                name: 'ChatService');
+          } catch (e) {
+            log('ChatService: Failed to parse status update: $e',
+                name: 'ChatService');
+          }
+        }
+      },
+    );
+
+    // Complete the connect future
+    if (_connectCompleter != null && !_connectCompleter!.isCompleted) {
+      _connectCompleter!.complete();
+    }
+  }
+
+  void _onDisconnect(StompFrame frame) {
+    log('ChatService: Disconnected from WebSocket.', name: 'ChatService');
+    PresenceService.stopHeartbeat();
+  }
+
+  /// Send a chat message to the specified receiver.
+  /// If not yet connected, waits up to 5s for the connection.
+  Future<void> sendMessage({required int receiverId, required String content}) async {
+    // Wait for connection if still pending
+    if (!isConnected && _connectCompleter != null) {
+      log('ChatService: Waiting for connection before sending...', name: 'ChatService');
+      try {
+        await _connectCompleter!.future.timeout(const Duration(seconds: 5));
+      } catch (_) {}
+    }
+
+    if (!isConnected) {
+      log('ChatService: Not connected, cannot send message.',
+          name: 'ChatService');
+      return;
+    }
+
+    final message = ChatMessageModel(
+      senderId: currentUserId,
+      receiverId: receiverId,
+      content: content,
+    );
+
+    log('ChatService: Sending message to $receiverId: "$content"', name: 'ChatService');
+    _stompClient!.send(
+      destination: '/app/chat.send',
+      body: jsonEncode(message.toJson()),
+    );
+    log('ChatService: Message sent successfully', name: 'ChatService');
+  }
+
+  /// Load chat history between the current user and another user via REST.
+  Future<List<ChatMessageModel>> fetchHistory(int otherUserId) async {
+    try {
+      final response = await DioClient.instance.get(
+        ApiEndpoints.chatHistory(currentUserId, otherUserId),
+      );
+
+      if (response.data is List) {
+        List<ChatMessageModel> history = (response.data as List)
+            .map((e) =>
+                ChatMessageModel.fromJson(e as Map<String, dynamic>))
+            .toList();
+            
+        // Since we fetched history, anything sent to US is now delivered to this device.
+        bool hasUndeliveredFromOther = history.any((msg) =>
+            msg.senderId == otherUserId &&
+            msg.receiverId == currentUserId &&
+            !msg.isDelivered && !msg.isRead);
+
+        if (hasUndeliveredFromOther) {
+          markAsDelivered(otherUserId);
+        }
+
+        return history;
+      }
+      return [];
+    } catch (e) {
+      log('ChatService: Failed to fetch history: $e', name: 'ChatService');
+      return [];
+    }
+  }
+
+  /// Load conversations overview — only partners with existing messages.
+  /// Returns a list of [ChatContactModel] with last message, timestamp, unread count.
+  Future<List<ChatContactModel>> fetchConversations() async {
+    try {
+      final response = await DioClient.instance.get(
+        ApiEndpoints.chatConversations(currentUserId),
+      );
+
+      if (response.data is List) {
+        return (response.data as List)
+            .map((e) =>
+                ChatContactModel.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+      return [];
+    } catch (e) {
+      log('ChatService: Failed to fetch conversations: $e',
+          name: 'ChatService');
+      return [];
+    }
+  }
+
+  /// Mark all messages from [otherUserId] to the current user as read.
+  Future<void> markAsRead(int otherUserId) async {
+    try {
+      await DioClient.instance.put(
+        ApiEndpoints.chatMarkRead(otherUserId, currentUserId),
+      );
+    } catch (e) {
+      log('ChatService: Failed to mark as read: $e', name: 'ChatService');
+    }
+  }
+
+  /// Mark all messages from [otherUserId] to the current user as delivered.
+  Future<void> markAsDelivered(int otherUserId) async {
+    try {
+      await DioClient.instance.put(
+        ApiEndpoints.chatMarkDelivered(otherUserId, currentUserId),
+      );
+    } catch (e) {
+      log('ChatService: Failed to mark as delivered: $e', name: 'ChatService');
+    }
+  }
+
+  /// Disconnect the STOMP client and clean up resources.
+  void disconnect() {
+    _stompClient?.deactivate();
+    _stompClient = null;
+    log('ChatService: Deactivated.', name: 'ChatService');
+  }
+
+  /// Dispose the service completely.
+  void dispose() {
+    disconnect();
+    _messageController.close();
+    _statusController.close();
+  }
+}
+

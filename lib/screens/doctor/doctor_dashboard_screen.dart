@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'dart:developer';
+import 'dart:async';
 import 'package:dio/dio.dart';
+import 'package:intl/intl.dart';
 import '../../utils/constants.dart';
 import '../../services/storage_service.dart';
 import '../../services/doctor_api_service.dart';
+import '../../services/chat_service.dart';
+import '../../services/presence_service.dart';
 import '../../models/user_model.dart';
 import '../../models/patient_response_model.dart';
+import '../../models/chat_contact_model.dart';
 import '../../core/api/api_exceptions.dart';
 import '../profile/profile_screen.dart';
 import '../../utils/app_localizations.dart';
@@ -37,6 +42,11 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
   List<PatientResponseModel> _patients = [];
   bool _isLoadingPatients = true;
   String? _patientsError;
+
+  // Chat-related state for the Chats tab
+  List<ChatContactModel> _chatContacts = [];
+  Map<int, PresenceStatus> _presenceMap = {};
+  bool _isLoadingChats = true;
 
   @override
   void initState() {
@@ -332,6 +342,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
   Widget build(BuildContext context) {
     final List<Widget> pages = [
       _buildDashboardContent(),
+      _buildChatsContent(),
       _buildPatientsContent(),
       const ProfileScreen(),
     ];
@@ -365,6 +376,11 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
             icon: Icons.dashboard_outlined,
             activeIcon: Icons.dashboard,
             label: AppLocalizations.of(context)!.get('dashboard'),
+          ),
+          CustomNavItem(
+            icon: Icons.chat_outlined,
+            activeIcon: Icons.chat,
+            label: AppLocalizations.of(context)?.get('chat') ?? 'Chats',
           ),
           CustomNavItem(
             icon: Icons.people_outline,
@@ -709,6 +725,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                               arguments: {
                                 'name': patient.fullName,
                                 'email': patient.email,
+                                'backendId': patient.id,
                               },
                             );
                           },
@@ -720,6 +737,309 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+  // ─── Chats Tab ────────────────────────────────────────────────────────────
+
+  /// Load conversations from the new API — only partners with existing messages.
+  Future<void> _loadChatsData() async {
+    final myId = _currentUser?.backendId;
+    if (myId == null) return;
+
+    try {
+      final chatService = ChatService(currentUserId: myId);
+      final contacts = await chatService.fetchConversations();
+
+      // Fetch presence in parallel for each contact
+      final presenceMap = <int, PresenceStatus>{};
+      await Future.wait(contacts.map((contact) async {
+        try {
+          final presence =
+              await PresenceService.fetchPresence(contact.partnerId);
+          presenceMap[contact.partnerId] = presence;
+        } catch (_) {
+          presenceMap[contact.partnerId] =
+              PresenceStatus(online: false, lastSeen: null);
+        }
+      }));
+
+      if (mounted) {
+        setState(() {
+          _chatContacts = contacts;
+          _presenceMap = presenceMap;
+          _isLoadingChats = false;
+        });
+      }
+    } catch (e) {
+      log('Failed to load chats: $e', name: 'DoctorDashboard');
+      if (mounted) {
+        setState(() => _isLoadingChats = false);
+      }
+    }
+  }
+
+  String _formatLastSeen(DateTime? lastSeen) {
+    if (lastSeen == null) return 'Offline';
+    final now = DateTime.now();
+    final diff = now.difference(lastSeen);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return DateFormat('MMM d').format(lastSeen);
+  }
+
+  Widget _buildChatsContent() {
+    // Trigger loading chats data once
+    if (!_isLoadingPatients && _isLoadingChats) {
+      _loadChatsData();
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          AppLocalizations.of(context)?.get('chat') ?? 'Chats',
+          style: const TextStyle(
+            color: AppColors.darkBlue,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: AppColors.white,
+        elevation: 0,
+      ),
+      body: DecoratedBackground(
+        child: _isLoadingChats
+            ? const Center(
+                child: CircularProgressIndicator(
+                    color: AppColors.primaryBlue))
+            : _chatContacts.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.chat_bubble_outline,
+                            size: 64,
+                            color: AppColors.grey.withValues(alpha: 0.4)),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No conversations yet.\nStart chatting from the Patients tab!',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: AppColors.grey.withValues(alpha: 0.7),
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: () async {
+                      setState(() => _isLoadingChats = true);
+                      await _loadChatsData();
+                    },
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppDimensions.paddingM,
+                        vertical: AppDimensions.paddingS,
+                      ),
+                      itemCount: _chatContacts.length,
+                      itemBuilder: (context, index) {
+                        final contact = _chatContacts[index];
+                        final presence =
+                            _presenceMap[contact.partnerId];
+                        final isOnline = presence?.online ?? false;
+
+                        return _buildChatTile(
+                          contact: contact,
+                          isOnline: isOnline,
+                          lastSeen: presence?.lastSeen,
+                        );
+                      },
+                    ),
+                  ),
+      ),
+    );
+  }
+
+  Widget _buildChatTile({
+    required ChatContactModel contact,
+    required bool isOnline,
+    DateTime? lastSeen,
+  }) {
+    final lastMsgText = contact.lastMessage.isNotEmpty
+        ? contact.lastMessage
+        : 'No messages yet';
+    final lastMsgTime = contact.lastMessageTimestamp != null
+        ? DateFormat('h:mm a').format(contact.lastMessageTimestamp!)
+        : '';
+    final statusText = isOnline ? 'Online' : _formatLastSeen(lastSeen);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppDimensions.paddingS),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(AppDimensions.radiusM),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            Navigator.pushNamed(
+              context,
+              '/patient_chat',
+              arguments: {
+                'name': contact.partnerName,
+                'email': contact.partnerEmail,
+                'backendId': contact.partnerId,
+              },
+            ).then((_) {
+              // Refresh chats data to update unread counts
+              setState(() => _isLoadingChats = true);
+              _loadChatsData();
+            });
+          },
+          borderRadius: BorderRadius.circular(AppDimensions.radiusM),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppDimensions.paddingM,
+              vertical: 14,
+            ),
+            child: Row(
+              children: [
+                // Avatar with online indicator
+                Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 26,
+                      backgroundColor:
+                          AppColors.primaryBlue.withValues(alpha: 0.1),
+                      child: Text(
+                        contact.partnerName.isNotEmpty
+                            ? contact.partnerName[0].toUpperCase()
+                            : '?',
+                        style: const TextStyle(
+                          color: AppColors.primaryBlue,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        width: 14,
+                        height: 14,
+                        decoration: BoxDecoration(
+                          color: isOnline
+                              ? AppColors.accentTeal
+                              : AppColors.grey,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                              color: AppColors.white, width: 2.5),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: AppDimensions.paddingM),
+                // Name + last message
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        contact.partnerName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.darkBlue,
+                          fontSize: 15,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        lastMsgText,
+                        style: TextStyle(
+                          color: AppColors.grey.withValues(alpha: 0.8),
+                          fontSize: 13,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Time, status & unread
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (lastMsgTime.isNotEmpty)
+                      Text(
+                        lastMsgTime,
+                        style: const TextStyle(
+                          color: AppColors.grey,
+                          fontSize: 11,
+                        ),
+                      ),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (contact.unreadCount > 0)
+                          Container(
+                            margin: const EdgeInsets.only(right: 6),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 7, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryBlue,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '${contact.unreadCount}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: isOnline
+                                ? AppColors.accentTeal.withValues(alpha: 0.1)
+                                : AppColors.grey.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            statusText,
+                            style: TextStyle(
+                              color: isOnline
+                                  ? AppColors.accentTeal
+                                  : AppColors.grey,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -924,6 +1244,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                                         arguments: {
                                           'name': patient.fullName,
                                           'email': patient.email,
+                                          'backendId': patient.id,
                                         },
                                       );
                                     },

@@ -63,7 +63,11 @@ class AppRoutes {
         page = const NotificationsScreen();
         break;
       case doctorChat:
-        page = const DoctorChatScreen();
+        final args = settings.arguments as Map<String, dynamic>?;
+        page = DoctorChatScreen(
+          doctorName: args?['doctorName'] as String?,
+          doctorId: args?['doctorId'] as int?,
+        );
         break;
       case followUps:
         page = const FollowUpsScreen();
@@ -92,7 +96,7 @@ class AppRoutes {
     }
 
     if (page != null) {
-      return AppPageRoute(page: page);
+      return AppPageRoute(page: page, settings: settings);
     }
 
     return null;

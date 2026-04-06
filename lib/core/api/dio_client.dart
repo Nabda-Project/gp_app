@@ -4,6 +4,7 @@ import '../config/api_config.dart';
 import '../../services/token_service.dart';
 import '../../services/backend_auth_service.dart';
 import '../../models/login_request.dart';
+import '../../services/notification_service.dart';
 import 'api_exceptions.dart';
 
 /// Singleton Dio HTTP client with JWT interceptor and error mapping.
@@ -112,9 +113,13 @@ class _AuthInterceptor extends Interceptor {
           final retryResponse = await _dio.fetch(opts);
           _isRefreshing = false;
           return handler.resolve(retryResponse);
+        } else {
+          // No credentials found to auto-refresh
+          _forceLogoutAndRedirect();
         }
       } catch (e) {
         log('Auto-refresh failed: $e', name: 'DioClient');
+        _forceLogoutAndRedirect();
       } finally {
         _isRefreshing = false;
       }
@@ -131,6 +136,16 @@ class _AuthInterceptor extends Interceptor {
         message: apiException.message,
       ),
     );
+  }
+
+  void _forceLogoutAndRedirect() {
+    log('Forcing logout and redirecting to login screen', name: 'DioClient');
+    TokenService.clearAll();
+    NotificationService.showError(
+        title: 'Session Expired',
+        message: 'Your session has expired. Please log in again.');
+    NotificationService.navigatorKey.currentState
+        ?.pushNamedAndRemoveUntil('/auth', (route) => false);
   }
 
   static ApiException _mapDioError(DioException err) {

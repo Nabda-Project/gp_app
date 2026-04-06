@@ -74,7 +74,10 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
   Widget build(BuildContext context) {
     final List<Widget> pages = [
       _buildDashboardContent(),
-      DoctorChatScreen(doctorName: _assignedDoctor?.fullName),
+      DoctorChatScreen(
+        doctorName: _assignedDoctor?.fullName,
+        doctorId: _assignedDoctor?.id,
+      ),
       const ProfileScreen(),
     ];
 
