@@ -34,4 +34,10 @@ class ApiEndpoints {
   // ─── Presence ───
   static String presence(int userId) => '/presence/$userId';
   static String presenceHeartbeat(int userId) => '/presence/heartbeat/$userId';
+
+  // ─── Appointments ───
+  static const String scheduleAppointment = '/appointments/schedule';
+  static String doctorAppointments(int doctorId) => '/appointments/doctor/$doctorId';
+  static String nextAppointment(int patientId) => '/appointments/patient/$patientId/next';
+  static String updateAppointmentStatus(int appointmentId) => '/appointments/$appointmentId/status';
 }

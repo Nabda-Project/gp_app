@@ -4,6 +4,8 @@ import '../../widgets/reusable/vital_card.dart';
 import '../../widgets/reusable/status_card.dart';
 import '../../widgets/reusable/decorated_background.dart';
 import '../../utils/app_localizations.dart';
+import '../../services/storage_service.dart';
+import '../../services/appointment_api_service.dart';
 
 class PatientDetailScreen extends StatefulWidget {
   const PatientDetailScreen({super.key});
@@ -13,7 +15,6 @@ class PatientDetailScreen extends StatefulWidget {
 }
 
 class _PatientDetailScreenState extends State<PatientDetailScreen> {
-
   @override
   Widget build(BuildContext context) {
     final patient =
@@ -26,7 +27,6 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
           'heartRate': '--',
           'lastUpdate': 'N/A',
         };
-
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -114,16 +114,40 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.pushNamed(context, '/patient_chat', arguments: patient);
-        },
-        backgroundColor: AppColors.primaryBlue,
-        icon: const Icon(Icons.message, color: Colors.white),
-        label: Text(
-          AppLocalizations.of(context)!.get('sendMessage'),
-          style: const TextStyle(color: Colors.white),
-        ),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          FloatingActionButton.extended(
+            heroTag: 'schedule_appointment_fab',
+            onPressed: () => _scheduleAppointment(context, patient),
+            backgroundColor: AppColors.white,
+            icon: const Icon(
+              Icons.calendar_month,
+              color: AppColors.primaryBlue,
+            ),
+            label: const Text(
+              'Schedule Appointment',
+              style: TextStyle(
+                color: AppColors.primaryBlue,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          FloatingActionButton.extended(
+            heroTag: 'send_message_fab',
+            onPressed: () {
+              Navigator.pushNamed(context, '/patient_chat', arguments: patient);
+            },
+            backgroundColor: AppColors.primaryBlue,
+            icon: const Icon(Icons.message, color: Colors.white),
+            label: Text(
+              AppLocalizations.of(context)!.get('sendMessage'),
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -181,7 +205,11 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    const Icon(Icons.access_time, size: 14, color: AppColors.grey),
+                    const Icon(
+                      Icons.access_time,
+                      size: 14,
+                      color: AppColors.grey,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       '${AppLocalizations.of(context)!.get('lastUpdate')}: ${patient['lastUpdate'] ?? 'N/A'}',
@@ -200,5 +228,116 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
     );
   }
 
+  Future<void> _scheduleAppointment(
+    BuildContext context,
+    Map<String, dynamic> patient,
+  ) async {
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now().add(const Duration(days: 1)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
 
+    if (pickedDate == null || !context.mounted) return;
+
+    final TimeOfDay? pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+
+    if (pickedTime == null || !context.mounted) return;
+
+    final DateTime appointmentDate = DateTime(
+      pickedDate.year,
+      pickedDate.month,
+      pickedDate.day,
+      pickedTime.hour,
+      pickedTime.minute,
+    );
+
+    if (appointmentDate.isBefore(DateTime.now())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cannot schedule appointments in the past.'),
+        ),
+      );
+      return;
+    }
+
+    String? reason;
+    final reasonController = TextEditingController();
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text('Schedule Appointment'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'With ${patient['name'] ?? 'Unknown'} at ${pickedTime.format(context)} on ${pickedDate.day}/${pickedDate.month}',
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: reasonController,
+                  decoration: const InputDecoration(
+                    labelText: 'Reason (Optional)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Schedule'),
+              ),
+            ],
+          ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+    reason = reasonController.text.trim();
+
+    try {
+      final user = StorageService.getUser();
+      if (user?.backendId == null) throw Exception("Doctor not logged in");
+
+      final int backendId =
+          patient['backendId'] ?? int.tryParse(patient['id'].toString()) ?? 0;
+      if (backendId == 0) throw Exception("Invalid patient ID");
+
+      await AppointmentApiService.scheduleAppointment(
+        doctorId: user!.backendId!,
+        patientId: backendId,
+        date: appointmentDate,
+        reason: reason.isNotEmpty ? reason : null,
+      );
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Appointment scheduled successfully.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context); // Automatically pop out so dashboard updates immediately!
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to schedule: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 }

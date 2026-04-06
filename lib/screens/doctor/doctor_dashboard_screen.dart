@@ -11,6 +11,7 @@ import '../../services/presence_service.dart';
 import '../../models/user_model.dart';
 import '../../models/patient_response_model.dart';
 import '../../models/chat_contact_model.dart';
+import '../../services/appointment_api_service.dart';
 import '../../core/api/api_exceptions.dart';
 import '../profile/profile_screen.dart';
 import '../../utils/app_localizations.dart';
@@ -42,6 +43,8 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
   List<PatientResponseModel> _patients = [];
   bool _isLoadingPatients = true;
   String? _patientsError;
+
+  int _todayAppointmentsCount = 0;
 
   // Chat-related state for the Chats tab
   List<ChatContactModel> _chatContacts = [];
@@ -76,6 +79,8 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
     });
     if (user?.backendId != null) {
       _fetchPatients(user!.backendId!);
+      _fetchAppointments(user.backendId!);
+      _loadChatsData();
     } else {
       setState(() {
         _isLoadingPatients = false;
@@ -137,6 +142,30 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
           _patientsError = AppLocalizations.of(context)!.get('unexpectedError');
         });
       }
+    }
+  }
+
+  Future<void> _fetchAppointments(int doctorId) async {
+    try {
+      final appointments = await AppointmentApiService.getDoctorAppointments(doctorId);
+      if (mounted) {
+        final now = DateTime.now();
+        final today = DateTime(now.year, now.month, now.day);
+        int count = 0;
+        for (var appt in appointments) {
+          if (appt.status != 'SCHEDULED') continue;
+          final apptDateLocal = appt.appointmentDate.toLocal();
+          final apptDay = DateTime(apptDateLocal.year, apptDateLocal.month, apptDateLocal.day);
+          if (apptDay.isAtSameMomentAs(today)) {
+            count++;
+          }
+        }
+        setState(() {
+          _todayAppointmentsCount = count;
+        });
+      }
+    } catch (e) {
+      log('Failed to fetch appointments for count: $e', name: 'DoctorDashboard');
     }
   }
 
@@ -404,9 +433,21 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: DecoratedBackground(
-        child: CustomScrollView(
-          slivers: [
-            // Custom App Bar
+        child: RefreshIndicator(
+          onRefresh: () async {
+            if (_currentUser?.backendId != null) {
+              await Future.wait([
+                _fetchPatients(_currentUser!.backendId!),
+                _fetchAppointments(_currentUser!.backendId!),
+                _loadChatsData(),
+              ]);
+            }
+          },
+          color: AppColors.primaryBlue,
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              // Custom App Bar
             SliverAppBar(
               expandedHeight: 140,
               floating: false,
@@ -528,6 +569,25 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                                     },
                                   ),
                                 ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: IconButton(
+                                    icon: const Icon(
+                                      Icons.calendar_month_outlined,
+                                      color: Colors.white,
+                                    ),
+                                    onPressed: () async {
+                                      await Navigator.pushNamed(context, '/doctor_appointments');
+                                      if (_currentUser?.backendId != null) {
+                                        _fetchAppointments(_currentUser!.backendId!);
+                                      }
+                                    },
+                                  ),
+                                ),
                               ],
                             ),
                           ],
@@ -576,7 +636,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                           index: 2,
                           child: StatCard(
                             icon: Icons.message,
-                            value: '3',
+                            value: '${_chatContacts.where((c) => c.unreadCount > 0).length}',
                             label: AppLocalizations.of(context)!.get('pendingMessages'),
                             color: AppColors.accentTeal,
                           ),
@@ -585,7 +645,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                           index: 3,
                           child: StatCard(
                             icon: Icons.calendar_today,
-                            value: '2',
+                            value: '$_todayAppointmentsCount',
                             label: AppLocalizations.of(context)!.get('todayAppointments'),
                             color: Colors.purple,
                           ),
@@ -626,9 +686,9 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                         ),
                         TextButton(
                           onPressed: () {
-                            setState(() => _currentIndex = 1);
+                            setState(() => _currentIndex = 2);
                             _pageController.animateToPage(
-                              1,
+                              2,
                               duration: const Duration(milliseconds: 300),
                               curve: Curves.easeInOut,
                             );
@@ -716,7 +776,11 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                                 'heartRate': '--',
                                 'lastUpdate': '',
                               },
-                            );
+                            ).then((_) {
+                              if (_currentUser?.backendId != null) {
+                                _fetchAppointments(_currentUser!.backendId!);
+                              }
+                            });
                           },
                           onMessageTap: () {
                             Navigator.pushNamed(
@@ -727,7 +791,10 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                                 'email': patient.email,
                                 'backendId': patient.id,
                               },
-                            );
+                            ).then((_) {
+                              setState(() => _isLoadingChats = true);
+                              _loadChatsData();
+                            });
                           },
                           onDeleteTap: () => _removePatient(patient),
                         ),
@@ -739,8 +806,9 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
   // ─── Chats Tab ────────────────────────────────────────────────────────────
 
   /// Load conversations from the new API — only partners with existing messages.
@@ -1235,7 +1303,11 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                                           'heartRate': '--',
                                           'lastUpdate': '',
                                         },
-                                      );
+                                      ).then((_) {
+                                        if (_currentUser?.backendId != null) {
+                                          _fetchAppointments(_currentUser!.backendId!);
+                                        }
+                                      });
                                     },
                                     onMessageTap: () {
                                       Navigator.pushNamed(
@@ -1246,7 +1318,10 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                                           'email': patient.email,
                                           'backendId': patient.id,
                                         },
-                                      );
+                                      ).then((_) {
+                                        setState(() => _isLoadingChats = true);
+                                        _loadChatsData();
+                                      });
                                     },
                                     onDeleteTap: () => _removePatient(patient),
                                   ),

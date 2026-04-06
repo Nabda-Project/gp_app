@@ -13,6 +13,7 @@ import '../screens/patient/medical_history_screen.dart';
 import '../screens/doctor/doctor_dashboard_screen.dart';
 import '../screens/doctor/patient_detail_screen.dart';
 import '../screens/doctor/patient_chat_screen.dart';
+import '../screens/doctor/doctor_appointments_screen.dart';
 import '../screens/role_selection/role_selection_screen.dart';
 import 'app_page_route.dart';
 
@@ -31,6 +32,7 @@ class AppRoutes {
   static const String doctorDashboard = '/doctor_dashboard';
   static const String patientDetail = '/patient_detail';
   static const String patientChat = '/patient_chat';
+  static const String doctorAppointments = '/doctor_appointments';
   static const String roleSelection = '/role_selection';
   static const String medicalHistory = '/medical_history';
 
@@ -86,6 +88,9 @@ class AppRoutes {
         break;
       case patientChat:
         page = const PatientChatScreen();
+        break;
+      case doctorAppointments:
+        page = const DoctorAppointmentsScreen();
         break;
       case roleSelection:
         page = const RoleSelectionScreen();

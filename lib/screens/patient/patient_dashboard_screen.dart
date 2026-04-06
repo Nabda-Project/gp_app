@@ -10,6 +10,9 @@ import '../../models/doctor_info_model.dart';
 import '../profile/profile_screen.dart';
 import '../../widgets/reusable/section_title.dart';
 import '../../utils/app_localizations.dart';
+import '../../models/appointment_model.dart';
+import '../../services/appointment_api_service.dart';
+import 'package:intl/intl.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../widgets/reusable/decorated_background.dart';
 import '../../widgets/animations/fade_slide_transition.dart';
@@ -29,6 +32,8 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
   UserModel? _currentUser;
   DoctorInfoModel? _assignedDoctor;
   bool _loadingDoctor = true;
+  AppointmentModel? _nextAppointment;
+  bool _loadingAppointment = true;
   final PageController _pageController = PageController();
 
   @override
@@ -48,7 +53,29 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     setState(() {
       _currentUser = user;
     });
-    await _fetchAssignedDoctor(user);
+    await Future.wait([
+      _fetchAssignedDoctor(user),
+      _fetchNextAppointment(user)
+    ]);
+  }
+
+  Future<void> _fetchNextAppointment(UserModel? user) async {
+    if (user?.backendId == null) {
+      setState(() => _loadingAppointment = false);
+      return;
+    }
+    try {
+      final appt = await AppointmentApiService.getNextAppointment(user!.backendId!);
+      if (mounted) {
+        setState(() {
+          _nextAppointment = appt;
+          _loadingAppointment = false;
+        });
+      }
+    } catch (e) {
+      log('Could not load next appointment: $e', name: 'PatientDashboard');
+      if (mounted) setState(() => _loadingAppointment = false);
+    }
   }
 
   Future<void> _fetchAssignedDoctor(UserModel? user) async {
@@ -582,17 +609,32 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
             ],
           ),
           const SizedBox(height: AppDimensions.paddingS),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const CircleAvatar(
-              backgroundColor: AppColors.lightGrey,
-              child: Icon(Icons.calendar_today, color: AppColors.primaryBlue),
+          if (_loadingAppointment)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16.0),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_nextAppointment != null)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const CircleAvatar(
+                backgroundColor: AppColors.lightGrey,
+                child: Icon(Icons.calendar_today, color: AppColors.primaryBlue),
+              ),
+              title: Text('Dr. ${_nextAppointment!.doctorName}'),
+              subtitle: Text(
+                '${DateFormat('EEE, MMM d, yyyy').format(_nextAppointment!.appointmentDate.toLocal())} at ${DateFormat('h:mm a').format(_nextAppointment!.appointmentDate.toLocal())}',
+              ),
+            )
+          else
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const CircleAvatar(
+                backgroundColor: AppColors.lightGrey,
+                child: Icon(Icons.event_available, color: AppColors.grey),
+              ),
+              title: const Text('No upcoming appointments', style: TextStyle(color: AppColors.grey)),
             ),
-            title: Text(AppLocalizations.of(context)!.get('drSarahJohnson')),
-            subtitle: Text(
-              AppLocalizations.of(context)!.get('appointmentDate'),
-            ),
-          ),
         ],
       ),
     );

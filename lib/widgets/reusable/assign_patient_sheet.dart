@@ -38,10 +38,8 @@ class AssignPatientSheet extends StatefulWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => AssignPatientSheet(
-        doctorId: doctorId,
-        onAssigned: onAssigned,
-      ),
+      builder:
+          (_) => AssignPatientSheet(doctorId: doctorId, onAssigned: onAssigned),
     );
   }
 
@@ -207,7 +205,10 @@ class _AssignPatientSheetState extends State<AssignPatientSheet> {
         });
       }
     } on ValidationException catch (e) {
-      log('Validation error during assign: ${e.message}', name: 'AssignPatient');
+      log(
+        'Validation error during assign: ${e.message}',
+        name: 'AssignPatient',
+      );
       if (mounted) {
         setState(() {
           _isAssigning = false;
@@ -324,7 +325,11 @@ class _AssignPatientSheetState extends State<AssignPatientSheet> {
                       color: AppColors.lightGrey.withValues(alpha: 0.5),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.close, size: 18, color: AppColors.grey),
+                    child: const Icon(
+                      Icons.close,
+                      size: 18,
+                      color: AppColors.grey,
+                    ),
                   ),
                 ),
               ],
@@ -386,27 +391,38 @@ class _AssignPatientSheetState extends State<AssignPatientSheet> {
                 controller: _searchController,
                 onChanged: _onQueryChanged,
                 autofocus: true,
-                keyboardType: _searchMode == _SearchMode.phone
-                    ? TextInputType.phone
-                    : TextInputType.text,
+                keyboardType:
+                    _searchMode == _SearchMode.phone
+                        ? TextInputType.phone
+                        : TextInputType.text,
                 decoration: InputDecoration(
-                  hintText: _searchMode == _SearchMode.name
-                      ? loc.get('searchByNameHint')
-                      : loc.get('searchByPhoneHint'),
-                  hintStyle: const TextStyle(color: AppColors.grey, fontSize: 14),
+                  hintText:
+                      _searchMode == _SearchMode.name
+                          ? loc.get('searchByNameHint')
+                          : loc.get('searchByPhoneHint'),
+                  hintStyle: const TextStyle(
+                    color: AppColors.grey,
+                    fontSize: 14,
+                  ),
                   prefixIcon: Icon(
-                    _searchMode == _SearchMode.name ? Icons.search : Icons.phone,
+                    _searchMode == _SearchMode.name
+                        ? Icons.search
+                        : Icons.phone,
                     color: AppColors.primaryBlue,
                   ),
-                  suffixIcon: _searchController.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear, color: AppColors.grey),
-                          onPressed: () {
-                            _searchController.clear();
-                            _onQueryChanged('');
-                          },
-                        )
-                      : null,
+                  suffixIcon:
+                      _searchController.text.isNotEmpty
+                          ? IconButton(
+                            icon: const Icon(
+                              Icons.clear,
+                              color: AppColors.grey,
+                            ),
+                            onPressed: () {
+                              _searchController.clear();
+                              _onQueryChanged('');
+                            },
+                          )
+                          : null,
                   filled: true,
                   fillColor: AppColors.white,
                   border: OutlineInputBorder(
@@ -440,11 +456,7 @@ class _AssignPatientSheetState extends State<AssignPatientSheet> {
                 ),
                 child: Row(
                   children: [
-                    Icon(
-                      Icons.error_outline,
-                      color: AppColors.error,
-                      size: 20,
-                    ),
+                    Icon(Icons.error_outline, color: AppColors.error, size: 20),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
@@ -479,9 +491,7 @@ class _AssignPatientSheetState extends State<AssignPatientSheet> {
             ),
 
           // Results list
-          Flexible(
-            child: _buildResultsArea(loc),
-          ),
+          Flexible(child: _buildResultsArea(loc)),
 
           // Bottom safe area
           SizedBox(height: MediaQuery.of(context).padding.bottom + 8),
@@ -504,15 +514,16 @@ class _AssignPatientSheetState extends State<AssignPatientSheet> {
         decoration: BoxDecoration(
           color: isActive ? AppColors.white : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
-          boxShadow: isActive
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.06),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
+          boxShadow:
+              isActive
+                  ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                  : null,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -555,10 +566,7 @@ class _AssignPatientSheetState extends State<AssignPatientSheet> {
             const SizedBox(height: 12),
             Text(
               loc.get('searching'),
-              style: const TextStyle(
-                color: AppColors.grey,
-                fontSize: 14,
-              ),
+              style: const TextStyle(color: AppColors.grey, fontSize: 14),
             ),
           ],
         ),
@@ -619,7 +627,10 @@ class _AssignPatientSheetState extends State<AssignPatientSheet> {
     );
   }
 
-  Widget _buildPatientResultTile(PatientSearchModel patient, AppLocalizations loc) {
+  Widget _buildPatientResultTile(
+    PatientSearchModel patient,
+    AppLocalizations loc,
+  ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
@@ -699,7 +710,11 @@ class _AssignPatientSheetState extends State<AssignPatientSheet> {
                           padding: const EdgeInsets.only(top: 2),
                           child: Row(
                             children: [
-                              const Icon(Icons.phone, size: 12, color: AppColors.grey),
+                              const Icon(
+                                Icons.phone,
+                                size: 12,
+                                color: AppColors.grey,
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 patient.phoneNumber!,
@@ -718,35 +733,37 @@ class _AssignPatientSheetState extends State<AssignPatientSheet> {
                 // Assign button
                 _isAssigning
                     ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                     : Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          gradient: AppColors.primaryGradient,
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.primaryBlue.withValues(alpha: 0.25),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: AppColors.primaryGradient,
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primaryBlue.withValues(
+                              alpha: 0.25,
                             ),
-                          ],
-                        ),
-                        child: Text(
-                          loc.get('assign'),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
                           ),
+                        ],
+                      ),
+                      child: Text(
+                        loc.get('assign'),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
                         ),
                       ),
+                    ),
               ],
             ),
           ),
