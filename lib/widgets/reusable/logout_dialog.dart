@@ -35,21 +35,22 @@ class LogoutDialog extends StatelessWidget {
     );
   }
 
-  Future<void> _handleLogout(
-    BuildContext context,
-    BuildContext dialogContext,
-  ) async {
-    Navigator.pop(dialogContext);
+  Future<void> _handleLogout(BuildContext context) async {
+    final navigator = Navigator.of(context);
+    
+    // Show a loading circle or just proceed (usually logout is very fast)
     await AuthService.signOut();
     await StorageService.logout();
     DioClient.reset(); // Clear cached Dio instance (JWT headers, etc.)
-    if (context.mounted) {
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        navigateToRoute,
-        (route) => false,
-      );
-    }
+    
+    // Pop the dialog first
+    navigator.pop();
+    
+    // Then navigate to the login/onboarding screen
+    navigator.pushNamedAndRemoveUntil(
+      navigateToRoute,
+      (route) => false,
+    );
   }
 
   @override
@@ -139,7 +140,7 @@ class LogoutDialog extends StatelessWidget {
                 // Logout Button
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () => _handleLogout(context, context),
+                    onPressed: () => _handleLogout(context),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.error,
                       padding: const EdgeInsets.symmetric(vertical: 14),
