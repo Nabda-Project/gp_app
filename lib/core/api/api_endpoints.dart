@@ -7,6 +7,9 @@ class ApiEndpoints {
   static const String register = '/auth/register';
   static const String login = '/auth/login';
 
+  // ─── User ───
+  static const String currentUser = '/user/me';
+
   // ─── Doctor ───
   static const String assignPatient = '/doctor/assign';
   static const String removePatient = '/doctor/remove';
