@@ -80,6 +80,18 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
         await TokenService.saveToken(authResponse.token);
         await TokenService.saveCredentials(email, generatedPassword);
         log('JWT obtained', name: 'RoleSelection');
+
+        // If we don't have the backendId yet (e.g. user already existed),
+        // fetch it from the /api/user/me endpoint using the JWT
+        if (backendId == null) {
+          try {
+            final profile = await BackendAuthService.fetchCurrentUser();
+            backendId = profile['id'] as int?;
+            log('Fetched backendId=$backendId from /user/me', name: 'RoleSelection');
+          } catch (e) {
+            log('Failed to fetch user profile: $e', name: 'RoleSelection');
+          }
+        }
       } catch (e) {
         log('Back-end login failed: $e', name: 'RoleSelection');
       }

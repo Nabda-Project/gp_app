@@ -449,7 +449,7 @@ class _AuthScreenState extends State<AuthScreen>
               FadeSlideTransition(
                 delay: const Duration(milliseconds: 400),
                 child: SizedBox(
-                  height: 600,
+                  height: MediaQuery.of(context).size.height * 0.6,
                   child: TabBarView(
                     controller: _tabController,
                     children: [_buildLoginForm(), _buildRegisterForm()],

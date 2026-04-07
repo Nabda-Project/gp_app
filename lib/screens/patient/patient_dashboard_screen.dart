@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer';
 import 'package:flutter/material.dart';
 import '../../utils/constants.dart';
@@ -18,6 +19,7 @@ import '../../widgets/reusable/decorated_background.dart';
 import '../../widgets/animations/fade_slide_transition.dart';
 import '../../widgets/animations/animated_list_item.dart';
 import '../../widgets/reusable/custom_bottom_nav.dart';
+import '../../services/chat_service.dart';
 import 'doctor_chat_screen.dart';
 
 class PatientDashboardScreen extends StatefulWidget {
@@ -35,6 +37,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
   AppointmentModel? _nextAppointment;
   bool _loadingAppointment = true;
   final PageController _pageController = PageController();
+  StreamSubscription<Map<String, dynamic>>? _systemEventSubscription;
 
   @override
   void initState() {
@@ -44,6 +47,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
 
   @override
   void dispose() {
+    _systemEventSubscription?.cancel();
     _pageController.dispose();
     super.dispose();
   }
@@ -53,6 +57,23 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     setState(() {
       _currentUser = user;
     });
+
+    // Initialize the global ChatService singleton (connects WebSocket + starts presence)
+    if (user?.backendId != null) {
+      ChatService.initialize(user!.backendId!).then((_) {
+        // Listen for system events (e.g. doctor assignment/removal)
+        _systemEventSubscription = ChatService.instance?.systemEvents.listen((event) {
+          if (event['type'] == 'PATIENT_ASSIGNED' && mounted) {
+            _fetchAssignedDoctor(user);
+          } else if (event['type'] == 'PATIENT_REMOVED' && mounted) {
+            setState(() {
+              _assignedDoctor = null;
+            });
+          }
+        });
+      });
+    }
+
     await Future.wait([
       _fetchAssignedDoctor(user),
       _fetchNextAppointment(user)

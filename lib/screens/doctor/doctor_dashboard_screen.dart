@@ -11,6 +11,7 @@ import '../../services/presence_service.dart';
 import '../../models/user_model.dart';
 import '../../models/patient_response_model.dart';
 import '../../models/chat_contact_model.dart';
+import '../../models/chat_message_model.dart';
 import '../../services/appointment_api_service.dart';
 import '../../core/api/api_exceptions.dart';
 import '../profile/profile_screen.dart';
@@ -50,6 +51,8 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
   List<ChatContactModel> _chatContacts = [];
   Map<int, PresenceStatus> _presenceMap = {};
   bool _isLoadingChats = true;
+  StreamSubscription<ChatMessageModel>? _chatMessageSubscription;
+  StreamSubscription<Map<String, dynamic>>? _systemEventSubscription;
 
   @override
   void initState() {
@@ -63,6 +66,8 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     _pageController.dispose();
+    _chatMessageSubscription?.cancel();
+    _systemEventSubscription?.cancel();
     super.dispose();
   }
 
@@ -78,7 +83,21 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
       _currentUser = user;
     });
     if (user?.backendId != null) {
-      _fetchPatients(user!.backendId!);
+      // Initialize the global ChatService singleton (connects WebSocket + starts presence)
+      ChatService.initialize(user!.backendId!).then((_) {
+        // Subscribe to real-time messages to keep chat list updated
+        _chatMessageSubscription = ChatService.instance?.messages.listen((_) {
+          // Any new message → refresh the chat list
+          if (mounted) _loadChatsData();
+        });
+        // Subscribe to system events (e.g. patient assignment)
+        _systemEventSubscription = ChatService.instance?.systemEvents.listen((event) {
+          if (event['type'] == 'PATIENT_ASSIGNED' && mounted) {
+            _silentRefreshPatients(user.backendId!);
+          }
+        });
+      });
+      _fetchPatients(user.backendId!);
       _fetchAppointments(user.backendId!);
       _loadChatsData();
     } else {
@@ -449,7 +468,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
             slivers: [
               // Custom App Bar
             SliverAppBar(
-              expandedHeight: 140,
+              expandedHeight: 170,
               floating: false,
               pinned: true,
               backgroundColor: AppColors.white,
@@ -489,11 +508,11 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                     SafeArea(
                       child: Padding(
                         padding: const EdgeInsets.all(AppDimensions.paddingL),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Row(
+                        child: Align(
+                          alignment: Alignment.bottomLeft,
+                          child: SingleChildScrollView(
+                            physics: const NeverScrollableScrollPhysics(),
+                            child: Row(
                               children: [
                                 Container(
                                   padding: const EdgeInsets.all(3),
@@ -590,7 +609,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                                 ),
                               ],
                             ),
-                          ],
+                          ),
                         ),
                       ),
                     ),
@@ -817,7 +836,11 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
     if (myId == null) return;
 
     try {
-      final chatService = ChatService(currentUserId: myId);
+      final chatService = ChatService.instance;
+      if (chatService == null) {
+        if (mounted) setState(() => _isLoadingChats = false);
+        return;
+      }
       final contacts = await chatService.fetchConversations();
 
       // Fetch presence in parallel for each contact

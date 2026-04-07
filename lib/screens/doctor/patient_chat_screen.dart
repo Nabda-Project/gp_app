@@ -78,7 +78,20 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
     }
 
     _myId = user.backendId!;
-    _chatService = ChatService(currentUserId: _myId);
+
+    // Use the global singleton — do NOT create a new instance
+    _chatService = ChatService.instance;
+
+    // If not initialized yet (edge case), initialize now
+    if (_chatService == null) {
+      await ChatService.initialize(_myId);
+      _chatService = ChatService.instance;
+    }
+
+    if (_chatService == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
 
     // Load history
     debugPrint('PatientChatScreen: Loading history between $_myId and $_patientId...');
@@ -104,10 +117,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
       (_) => _fetchPresence(),
     );
 
-    // Connect and listen for real-time messages
-    debugPrint('PatientChatScreen: Connecting WebSocket...');
-    await _chatService!.connect();
-    debugPrint('PatientChatScreen: WebSocket connected=${_chatService!.isConnected}');
+    // Listen for real-time messages (singleton is already connected)
     _messageSubscription = _chatService!.messages.listen((msg) {
       if ((msg.senderId == _patientId && msg.receiverId == _myId) ||
           (msg.senderId == _myId && msg.receiverId == _patientId)) {
@@ -235,7 +245,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
     _presenceTimer?.cancel();
     _messageSubscription?.cancel();
     _statusSubscription?.cancel();
-    _chatService?.dispose();
+    // Do NOT dispose the global ChatService singleton — it must stay alive
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -379,7 +389,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
           Column(
             children: [
               // Add spacing for the extended app bar
-              const SizedBox(height: 100),
+              SizedBox(height: kToolbarHeight + MediaQuery.of(context).padding.top),
               // Messages List
               Expanded(
                 child: _isLoading

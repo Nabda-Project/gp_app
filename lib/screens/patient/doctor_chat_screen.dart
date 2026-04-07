@@ -58,7 +58,19 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
       return;
     }
 
-    _chatService = ChatService(currentUserId: _myId);
+    // Use the global singleton — do NOT create a new instance
+    _chatService = ChatService.instance;
+
+    // If not initialized yet (edge case), initialize now
+    if (_chatService == null) {
+      await ChatService.initialize(_myId);
+      _chatService = ChatService.instance;
+    }
+
+    if (_chatService == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
 
     // Load history first
     final history = await _chatService!.fetchHistory(_doctorId);
@@ -82,8 +94,7 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
       (_) => _fetchPresence(),
     );
 
-    // Connect WebSocket and listen for new messages
-    await _chatService!.connect();
+    // Listen for new messages (singleton is already connected)
     _messageSubscription = _chatService!.messages.listen((msg) {
       // Only add messages from this conversation
       if ((msg.senderId == _doctorId && msg.receiverId == _myId) ||
@@ -212,7 +223,7 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
     _presenceTimer?.cancel();
     _messageSubscription?.cancel();
     _statusSubscription?.cancel();
-    _chatService?.dispose();
+    // Do NOT dispose the global ChatService singleton — it must stay alive
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -360,7 +371,7 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
           Column(
             children: [
               // Add spacing for the extended app bar
-              const SizedBox(height: 100),
+              SizedBox(height: kToolbarHeight + MediaQuery.of(context).padding.top),
               // Messages list
               Expanded(
                 child: _isLoading
