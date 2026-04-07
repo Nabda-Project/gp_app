@@ -8,7 +8,6 @@ import '../services/backend_auth_service.dart';
 import '../services/token_service.dart';
 import '../services/storage_service.dart';
 import '../services/firestore_service.dart';
-import '../core/api/api_exceptions.dart';
 
 /// Orchestrates the hybrid authentication flow:
 ///   Firebase Auth (identity) + Back-end JWT (API access).
@@ -180,21 +179,38 @@ class AuthService {
       role: 'Patient', // Default; will be corrected on role selection
     );
 
-    await StorageService.saveUser(user);
-    return user;
+    // If backendId is missing, try to fetch it from the back-end
+    UserModel finalUser = user;
+    if (finalUser.backendId == null) {
+      try {
+        final profile = await BackendAuthService.fetchCurrentUser();
+        final backendId = profile['id'] as int?;
+        final backendRole = profile['role'] as String? ?? 'PATIENT';
+        finalUser = finalUser.copyWith(
+          backendId: backendId,
+          role: backendRole == 'DOCTOR' ? 'Doctor' : 'Patient',
+        );
+        log('Fetched backendId=$backendId from /user/me', name: 'AuthService');
+      } catch (e) {
+        log('Failed to fetch back-end profile: $e', name: 'AuthService');
+      }
+    }
+
+    await StorageService.saveUser(finalUser);
+    return finalUser;
   }
 
   // =========================================================================
-  //  GOOGLE SIGN-IN — Firebase, then auto-register on back-end
+  //  GOOGLE SIGN-IN — Firebase auth only, backend handled by role selection
   // =========================================================================
 
   /// Google Sign-In hybrid flow:
   /// 1) Google OAuth → Firebase credential
-  /// 2) Auto-register on back-end (with generated password)
-  /// 3) Login to back-end for JWT
+  /// 2) For returning users: login to back-end for JWT + fetch profile
+  /// 3) For new users: no back-end action (role selection will handle it)
   ///
   /// Returns `null` if user cancels the Google picker.
-  /// The user will be directed to role selection if no local profile exists.
+  /// New users will be directed to role selection by the calling screen.
   static Future<UserCredential?> signInWithGoogle() async {
     final googleUser = await GoogleSignIn().signIn();
     if (googleUser == null) return null; // User cancelled
@@ -208,31 +224,14 @@ class AuthService {
     final userCredential = await _auth.signInWithCredential(credential);
     final firebaseUser = userCredential.user!;
 
-    // Auto-register on back-end if this is a new user
     // Use Firebase UID as a deterministic "password" for the back-end account
     final generatedPassword = 'GoogleAuth_${firebaseUser.uid}';
     final email = firebaseUser.email ?? '';
     final fullName = firebaseUser.displayName ?? 'User';
 
-    try {
-      // Try to register (will fail with 409 if user already exists – that's OK)
-      final registerRequest = RegisterRequest(
-        fullName: fullName,
-        email: email,
-        password: generatedPassword,
-        phoneNumber: '', // Not available from Google
-        role: 'PATIENT', // Default; can be changed via role selection
-      );
-      await BackendAuthService.register(registerRequest);
-      log('Google user registered on back-end', name: 'AuthService');
-    } on ConflictException {
-      log('Google user already exists on back-end', name: 'AuthService');
-    } catch (e) {
-      log('Google back-end registration failed: $e', name: 'AuthService');
-      // Continue – user can still use the app; JWT features may be limited
-    }
-
-    // Login to back-end for JWT
+    // Do NOT register on back-end here — let role selection handle that
+    // so the user can choose their role (Doctor or Patient).
+    // Only try to LOGIN for returning users who already registered.
     try {
       final loginRequest = LoginRequest(
         email: email,
@@ -241,9 +240,40 @@ class AuthService {
       final authResponse = await BackendAuthService.login(loginRequest);
       await TokenService.saveToken(authResponse.token);
       await TokenService.saveCredentials(email, generatedPassword);
-      log('Google user JWT obtained', name: 'AuthService');
+      log('Google user JWT obtained (returning user)', name: 'AuthService');
+
+      // Fetch the user profile from back-end to get the backendId
+      try {
+        final backendProfile = await BackendAuthService.fetchCurrentUser();
+        final backendId = backendProfile['id'] as int?;
+        final backendRole = backendProfile['role'] as String? ?? 'PATIENT';
+        final role = backendRole == 'DOCTOR' ? 'Doctor' : 'Patient';
+
+        final user = UserModel(
+          id: firebaseUser.uid,
+          backendId: backendId,
+          fullName: fullName,
+          email: email,
+          role: role,
+        );
+        await StorageService.saveUser(user);
+
+        // Also save to Firestore for consistency
+        try {
+          await FirestoreService.saveUser(user);
+        } catch (e) {
+          log('Firestore save failed (non-critical): $e', name: 'AuthService');
+        }
+
+        log('Google sign-in complete: $email (backendId=$backendId)',
+            name: 'AuthService');
+      } catch (e) {
+        log('Failed to fetch back-end profile: $e', name: 'AuthService');
+      }
     } catch (e) {
-      log('Google back-end login failed: $e', name: 'AuthService');
+      // Login failed = new user who hasn't registered on back-end yet.
+      // That's expected — role selection screen will handle registration.
+      log('Google back-end login failed (new user): $e', name: 'AuthService');
     }
 
     return userCredential;

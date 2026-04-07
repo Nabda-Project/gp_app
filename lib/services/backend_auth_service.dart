@@ -51,4 +51,21 @@ class BackendAuthService {
       rethrow;
     }
   }
+
+  /// Fetch the currently authenticated user's profile from the back-end.
+  ///
+  /// Requires a valid JWT to be stored (call after [login]).
+  /// Returns the user data as a Map (includes `id`, `fullName`, `email`, `role`).
+  static Future<Map<String, dynamic>> fetchCurrentUser() async {
+    try {
+      log('Fetching current user profile from back-end', name: 'BackendAuthService');
+      final response = await DioClient.instance.get(ApiEndpoints.currentUser);
+      log('Current user profile fetched successfully', name: 'BackendAuthService');
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      log('Failed to fetch current user: ${e.message}', name: 'BackendAuthService');
+      if (e.error is ApiException) throw e.error!;
+      rethrow;
+    }
+  }
 }
