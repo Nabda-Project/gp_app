@@ -3,6 +3,7 @@ import '../../utils/constants.dart';
 import '../../utils/app_localizations.dart';
 import '../../services/auth_service.dart';
 import '../../services/storage_service.dart';
+import '../../services/chat_service.dart';
 import '../../core/api/dio_client.dart';
 
 /// A reusable logout confirmation dialog with modern styling.
@@ -41,6 +42,7 @@ class LogoutDialog extends StatelessWidget {
     // Show a loading circle or just proceed (usually logout is very fast)
     await AuthService.signOut();
     await StorageService.logout();
+    ChatService.shutdown(); // Disconnect WebSocket + stop presence heartbeat
     DioClient.reset(); // Clear cached Dio instance (JWT headers, etc.)
     
     // Pop the dialog first

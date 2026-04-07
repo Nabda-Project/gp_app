@@ -114,19 +114,21 @@ class PatientCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Row(
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
                         children: [
                           _buildInfoChip(
                             Icons.favorite,
                             '$heartRate bpm',
                             Colors.redAccent,
                           ),
-                          const SizedBox(width: 8),
-                          _buildInfoChip(
-                            Icons.access_time,
-                            lastUpdate,
-                            AppColors.grey,
-                          ),
+                          if (lastUpdate.isNotEmpty)
+                            _buildInfoChip(
+                              Icons.access_time,
+                              lastUpdate,
+                              AppColors.grey,
+                            ),
                         ],
                       ),
                     ],

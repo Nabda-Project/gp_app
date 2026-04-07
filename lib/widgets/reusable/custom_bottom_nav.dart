@@ -40,58 +40,52 @@ class CustomBottomNavBar extends StatelessWidget {
                 final item = entry.value;
                 final isSelected = index == currentIndex;
 
-                return GestureDetector(
-                  onTap: () => onTap(index),
-                  behavior: HitTestBehavior.opaque,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeOutCubic,
-                    padding: EdgeInsets.symmetric(
-                      horizontal: isSelected ? 20 : 16,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color:
-                          isSelected
-                              ? AppColors.primaryBlue.withValues(alpha: 0.1)
-                              : Colors.transparent,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          child: Icon(
+                return Flexible(
+                  child: GestureDetector(
+                    onTap: () => onTap(index),
+                    behavior: HitTestBehavior.opaque,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOutCubic,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isSelected ? 12 : 8,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color:
+                            isSelected
+                                ? AppColors.primaryBlue.withValues(alpha: 0.1)
+                                : Colors.transparent,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
                             isSelected ? item.activeIcon : item.icon,
                             color:
                                 isSelected
                                     ? AppColors.primaryBlue
                                     : AppColors.grey,
-                            size: isSelected ? 26 : 24,
+                            size: isSelected ? 24 : 22,
                           ),
-                        ),
-                        AnimatedSize(
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeOutCubic,
-                          child: SizedBox(width: isSelected ? 8 : 0),
-                        ),
-                        AnimatedSize(
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeOutCubic,
-                          child:
-                              isSelected
-                                  ? Text(
-                                    item.label,
-                                    style: const TextStyle(
-                                      color: AppColors.primaryBlue,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 14,
-                                    ),
-                                  )
-                                  : const SizedBox.shrink(),
-                        ),
-                      ],
+                          if (isSelected) ...[
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                item.label,
+                                style: const TextStyle(
+                                  color: AppColors.primaryBlue,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                   ),
                 );

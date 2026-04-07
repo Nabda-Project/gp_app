@@ -18,7 +18,7 @@ class StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(AppDimensions.paddingM),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
         color: AppColors.white,
@@ -49,7 +49,7 @@ class StatCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
@@ -57,31 +57,34 @@ class StatCard extends StatelessWidget {
                 child: Icon(
                   icon,
                   color: color,
-                  size: 24,
-                ), // Slightly larger icon
+                  size: 22,
+                ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment:
-                      MainAxisAlignment.center, // Center vertically
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      value,
-                      style: TextStyle(
-                        fontSize: 28, // Increased from 22
-                        fontWeight: FontWeight.w800, // Extra bold
-                        color: color,
-                        height: 1.0,
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        value,
+                        style: TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w800,
+                          color: color,
+                          height: 1.0,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       label,
                       style: const TextStyle(
-                        fontSize: 13, // Increased from 11
-                        fontWeight: FontWeight.bold, // Added bold
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
                         color: AppColors.grey,
                       ),
                       overflow: TextOverflow.ellipsis,
