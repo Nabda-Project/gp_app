@@ -273,6 +273,7 @@ class ChatService {
 
   /// Load conversations overview — only partners with existing messages.
   /// Returns a list of [ChatContactModel] with last message, timestamp, unread count.
+  /// Sorted by most recent message first.
   Future<List<ChatContactModel>> fetchConversations() async {
     try {
       final response = await DioClient.instance.get(
@@ -280,10 +281,22 @@ class ChatService {
       );
 
       if (response.data is List) {
-        return (response.data as List)
+        final contacts = (response.data as List)
             .map((e) =>
                 ChatContactModel.fromJson(e as Map<String, dynamic>))
             .toList();
+
+        // Sort by last message timestamp descending (most recent first)
+        contacts.sort((a, b) {
+          final tsA = a.lastMessageTimestamp;
+          final tsB = b.lastMessageTimestamp;
+          if (tsA == null && tsB == null) return 0;
+          if (tsA == null) return 1;
+          if (tsB == null) return -1;
+          return tsB.compareTo(tsA);
+        });
+
+        return contacts;
       }
       return [];
     } catch (e) {

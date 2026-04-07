@@ -105,17 +105,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
               // Medical History - only visible for patients, not doctors
-              if (_currentUser?.role != 'Doctor')
-                AnimatedListItem(
-                  index: 1,
-                  child: _buildProfileOption(
-                    icon: Icons.history,
-                    title: AppLocalizations.of(context)!.get('medicalHistory'),
-                    onTap: () {
-                      Navigator.pushNamed(context, '/medical_history');
-                    },
-                  ),
-                ),
+              // if (_currentUser?.role != 'Doctor')
+              //   AnimatedListItem(
+              //     index: 1,
+              //     child: _buildProfileOption(
+              //       icon: Icons.history,
+              //       title: AppLocalizations.of(context)!.get('medicalHistory'),
+              //       onTap: () {
+              //         Navigator.pushNamed(context, '/medical_history');
+              //       },
+              //     ),
+              //   ),
               const SizedBox(height: AppDimensions.paddingL),
               AnimatedListItem(
                 index: 2,
