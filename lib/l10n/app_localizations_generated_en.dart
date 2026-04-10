@@ -511,4 +511,20 @@ class GeneratedLocalizationsEn extends GeneratedLocalizations {
 
   @override
   String get completed => 'Completed';
+
+  @override
+  String get delete => 'Delete';
+
+  @override
+  String get deleteNotification => 'Delete Notification';
+
+  @override
+  String get deleteNotificationConfirm =>
+      'Are you sure you want to delete this notification?';
+
+  @override
+  String get notificationDeleted => 'Notification deleted';
+
+  @override
+  String get deleteAll => 'Delete All';
 }

@@ -510,4 +510,19 @@ class GeneratedLocalizationsAr extends GeneratedLocalizations {
 
   @override
   String get completed => 'مكتمل';
+
+  @override
+  String get delete => 'حذف';
+
+  @override
+  String get deleteNotification => 'حذف الإشعار';
+
+  @override
+  String get deleteNotificationConfirm => 'هل أنت متأكد من حذف هذا الإشعار؟';
+
+  @override
+  String get notificationDeleted => 'تم حذف الإشعار';
+
+  @override
+  String get deleteAll => 'حذف الكل';
 }

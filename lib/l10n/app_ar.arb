@@ -167,5 +167,6 @@
   "delete": "حذف",
   "deleteNotification": "حذف الإشعار",
   "deleteNotificationConfirm": "هل أنت متأكد من حذف هذا الإشعار؟",
-  "notificationDeleted": "تم حذف الإشعار"
+  "notificationDeleted": "تم حذف الإشعار",
+  "deleteAll": "حذف الكل"
 }

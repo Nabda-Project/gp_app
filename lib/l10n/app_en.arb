@@ -167,5 +167,6 @@
   "delete": "Delete",
   "deleteNotification": "Delete Notification",
   "deleteNotificationConfirm": "Are you sure you want to delete this notification?",
-  "notificationDeleted": "Notification deleted"
+  "notificationDeleted": "Notification deleted",
+  "deleteAll": "Delete All"
 }
