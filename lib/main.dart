@@ -20,8 +20,11 @@ void main() async {
   } catch (e) {
     log("StorageService Init Failed: $e", name: 'Main');
   }
-  // Initialize push notifications (FCM + local notifications)
-  await PushNotificationService.initialize();
+  // Initialize push notifications (FCM + local notifications) asynchronously so it doesn't block runApp
+  PushNotificationService.initialize().catchError((e) {
+    log("PushNotificationService Init Failed: $e", name: 'Main');
+  });
+  
   runApp(const GPApp());
 }
 
@@ -62,12 +65,10 @@ class GPApp extends StatelessWidget {
           },
           builder: (context, child) {
             final mediaQuery = MediaQuery.of(context);
-            final clampedScaler = mediaQuery.textScaler.clamp(
-              minScaleFactor: 1.0,
-              maxScaleFactor: 1.3,
-            );
+            final double currentScale = mediaQuery.textScaler.scale(1.0);
+            final double clampedScale = currentScale.clamp(1.0, 1.3);
             return MediaQuery(
-              data: mediaQuery.copyWith(textScaler: clampedScaler),
+              data: mediaQuery.copyWith(textScaler: TextScaler.linear(clampedScale)),
               child: child!,
             );
           },

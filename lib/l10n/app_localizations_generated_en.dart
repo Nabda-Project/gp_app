@@ -453,7 +453,7 @@ class GeneratedLocalizationsEn extends GeneratedLocalizations {
   String get noFollowUps => 'No upcoming follow-ups';
 
   @override
-  String get bodyTemp => 'Body Temp';
+  String get batteryLevel => 'Battery Level';
 
   @override
   String get yourDoctor => 'Your Doctor';

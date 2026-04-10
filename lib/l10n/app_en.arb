@@ -145,7 +145,7 @@
   "missedAppointments": "Missed Appointments",
   "upcomingFollowUps": "Upcoming Follow-ups",
   "noFollowUps": "No upcoming follow-ups",
-  "bodyTemp": "Body Temp",
+  "batteryLevel": "Battery Level",
   "yourDoctor": "Your Doctor",
   "noDoctorAssigned": "No doctor assigned yet",
   "noDoctorAssignedDesc": "Your care team will be shown here once assigned.",

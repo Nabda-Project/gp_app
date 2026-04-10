@@ -453,7 +453,7 @@ class GeneratedLocalizationsAr extends GeneratedLocalizations {
   String get noFollowUps => 'لا توجد مواعيد قادمة';
 
   @override
-  String get bodyTemp => 'حرارة الجسم';
+  String get batteryLevel => 'نسبة البطارية';
 
   @override
   String get yourDoctor => 'طبيبك';

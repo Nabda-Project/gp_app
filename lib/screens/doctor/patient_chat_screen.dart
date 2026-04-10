@@ -257,9 +257,23 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
+    return PopScope(
+      canPop: Navigator.canPop(context),
+      onPopInvoked: (didPop) {
+        if (!didPop) {
+          final role = StorageService.getUser()?.role;
+          if (role == 'DOCTOR') {
+            Navigator.pushReplacementNamed(context, '/doctor_dashboard');
+          } else if (role == 'PATIENT') {
+            Navigator.pushReplacementNamed(context, '/patient_dashboard');
+          } else {
+            Navigator.pushReplacementNamed(context, '/splash');
+          }
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
         toolbarHeight: 70,
         backgroundColor: AppColors.white,
         elevation: 0,
@@ -543,6 +557,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
             ],
           ),
         ],
+      ),
       ),
     );
   }

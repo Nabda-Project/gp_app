@@ -208,6 +208,14 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
           setState(() {
             _currentIndex = index;
           });
+          
+          if (index == 0) {
+            // When returning to dashboard, refresh the general notification badge count
+            if (_currentUser?.backendId != null) {
+              _fetchUnreadNotifCount(_currentUser!.backendId!);
+            }
+          }
+          
           // Clear badge when entering the chat tab and map it to DB via API
           if (_showChatTab && index == 1 && _unreadChatCount > 0) {
             setState(() => _unreadChatCount = 0);
@@ -215,7 +223,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
               NotificationApiService.markChatAsRead(
                 _currentUser!.backendId!,
                 _assignedDoctor!.id,
-              );
+              ).then((_) => _fetchUnreadNotifCount(_currentUser!.backendId!)); // Refresh general count too
             }
           }
         },
@@ -494,11 +502,11 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                         AnimatedListItem(
                           index: 2,
                           child: VitalCard(
-                            label: 'Body Temp',
+                            label: AppLocalizations.of(context)!.get('batteryLevel'),
                             value: '--',
-                            unit: "°C",
-                            icon: Icons.thermostat,
-                            color: Colors.orange,
+                            unit: "%",
+                            icon: Icons.battery_charging_full,
+                            color: Colors.green,
                           ),
                         ),
                         AnimatedListItem(
@@ -519,6 +527,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 80), // Padding to prevent floating action button overlapping Next Follow-Up widget
                   ],
                 ),
               ),

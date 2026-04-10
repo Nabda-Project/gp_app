@@ -4,7 +4,7 @@ class HealthMetricModel {
   final int id;
   final double? heartRate;
   final double? spo2;
-  final double? bodyTemp;
+  final int? batteryLevel;
   final DateTime? timestamp;
   final bool isCritical;
 
@@ -12,7 +12,7 @@ class HealthMetricModel {
     required this.id,
     this.heartRate,
     this.spo2,
-    this.bodyTemp,
+    this.batteryLevel,
     this.timestamp,
     this.isCritical = false,
   });
@@ -22,7 +22,7 @@ class HealthMetricModel {
       id: json['id'] as int,
       heartRate: (json['heartRate'] as num?)?.toDouble(),
       spo2: (json['spo2'] as num?)?.toDouble(),
-      bodyTemp: (json['bodyTemp'] as num?)?.toDouble(),
+      batteryLevel: json['batteryLevel'] as int?,
       timestamp: json['timestamp'] != null
           ? DateTime.tryParse(json['timestamp'] as String)
           : null,
@@ -40,7 +40,7 @@ class HealthMetricModel {
   String get spo2Display =>
       spo2 != null ? spo2!.toStringAsFixed(0) : '--';
 
-  /// Human-readable body temperature string.
-  String get bodyTempDisplay =>
-      bodyTemp != null ? bodyTemp!.toStringAsFixed(1) : '--';
+  /// Human-readable battery level string.
+  String get batteryLevelDisplay =>
+      batteryLevel != null ? batteryLevel!.toString() : '--';
 }

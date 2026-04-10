@@ -3,19 +3,19 @@
 class MetricRequest {
   final double heartRate;
   final double spo2;
-  final double bodyTemp;
+  final int batteryLevel;
 
   MetricRequest({
     required this.heartRate,
     required this.spo2,
-    required this.bodyTemp,
+    required this.batteryLevel,
   });
 
   Map<String, dynamic> toJson() {
     return {
       'heartRate': heartRate,
       'spo2': spo2,
-      'bodyTemp': bodyTemp,
+      'batteryLevel': batteryLevel,
     };
   }
 }

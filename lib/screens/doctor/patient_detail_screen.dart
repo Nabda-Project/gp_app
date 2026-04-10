@@ -116,11 +116,11 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                     color: Colors.lightBlue,
                   ),
                   VitalCard(
-                    label: 'Body Temp',
+                    label: AppLocalizations.of(context)!.get('batteryLevel'),
                     value: '--',
-                    unit: '°C',
-                    icon: Icons.thermostat,
-                    color: Colors.orange,
+                    unit: '%',
+                    icon: Icons.battery_charging_full,
+                    color: Colors.green,
                   ),
                   VitalCard(
                     label: AppLocalizations.of(context)!.get('nextFollowUp'),

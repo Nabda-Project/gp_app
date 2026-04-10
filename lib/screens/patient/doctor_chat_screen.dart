@@ -239,9 +239,23 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
         ? 'Dr. ${widget.doctorName}'
         : AppLocalizations.of(context)!.get('doctorChatTitle');
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
+    return PopScope(
+      canPop: Navigator.canPop(context),
+      onPopInvoked: (didPop) {
+        if (!didPop) {
+          final role = StorageService.getUser()?.role;
+          if (role == 'DOCTOR') {
+            Navigator.pushReplacementNamed(context, '/doctor_dashboard');
+          } else if (role == 'PATIENT') {
+            Navigator.pushReplacementNamed(context, '/patient_dashboard');
+          } else {
+            Navigator.pushReplacementNamed(context, '/splash');
+          }
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
         toolbarHeight: 70,
         backgroundColor: AppColors.white,
         elevation: 0,
@@ -525,6 +539,7 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
             ],
           ),
         ],
+      ),
       ),
     );
   }

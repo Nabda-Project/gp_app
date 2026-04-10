@@ -4,7 +4,11 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class TokenService {
   TokenService._();
 
-  static const _storage = FlutterSecureStorage();
+  static const _storage = FlutterSecureStorage(
+    aOptions: AndroidOptions(
+      encryptedSharedPreferences: true,
+    ),
+  );
   static const _tokenKey = 'backend_jwt_token';
   static const _emailKey = 'backend_email';
   static const _passwordKey = 'backend_password';

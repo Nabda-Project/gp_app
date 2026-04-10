@@ -971,11 +971,11 @@ abstract class GeneratedLocalizations {
   /// **'No upcoming follow-ups'**
   String get noFollowUps;
 
-  /// No description provided for @bodyTemp.
+  /// No description provided for @batteryLevel.
   ///
   /// In en, this message translates to:
-  /// **'Body Temp'**
-  String get bodyTemp;
+  /// **'Battery Level'**
+  String get batteryLevel;
 
   /// No description provided for @yourDoctor.
   ///

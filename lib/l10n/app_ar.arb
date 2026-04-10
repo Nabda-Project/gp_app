@@ -145,7 +145,7 @@
   "missedAppointments": "المواعيد الفائتة",
   "upcomingFollowUps": "المواعيد القادمة",
   "noFollowUps": "لا توجد مواعيد قادمة",
-  "bodyTemp": "حرارة الجسم",
+  "batteryLevel": "نسبة البطارية",
   "yourDoctor": "طبيبك",
   "noDoctorAssigned": "لا يوجد طبيب معين بعد",
   "noDoctorAssignedDesc": "سيظهر فريق الرعاية الخاص بك هنا بمجرد التعيين.",

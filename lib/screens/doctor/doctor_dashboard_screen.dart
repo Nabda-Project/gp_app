@@ -935,6 +935,9 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                             ).then((_) {
                               setState(() => _isLoadingChats = true);
                               _loadChatsData();
+                              if (_currentUser?.backendId != null) {
+                                _fetchUnreadNotifCount(_currentUser!.backendId!);
+                              }
                             });
                           },
                           onDeleteTap: () => _removePatient(patient),
@@ -1124,6 +1127,9 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
               // Refresh chats data to update unread counts
               setState(() => _isLoadingChats = true);
               _loadChatsData();
+              if (_currentUser?.backendId != null) {
+                _fetchUnreadNotifCount(_currentUser!.backendId!);
+              }
             });
           },
           borderRadius: BorderRadius.circular(AppDimensions.radiusM),
@@ -1480,6 +1486,9 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                                       ).then((_) {
                                         setState(() => _isLoadingChats = true);
                                         _loadChatsData();
+                                        if (_currentUser?.backendId != null) {
+                                          _fetchUnreadNotifCount(_currentUser!.backendId!);
+                                        }
                                       });
                                     },
                                     onDeleteTap: () => _removePatient(patient),

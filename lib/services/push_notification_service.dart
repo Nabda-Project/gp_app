@@ -128,10 +128,15 @@ class PushNotificationService {
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
     if (androidPlugin != null) {
-      await androidPlugin.createNotificationChannel(_channel);
-      // Request exact alarm / full-screen intent permission (Android 14+)
-      await androidPlugin.requestExactAlarmsPermission();
-      await androidPlugin.requestNotificationsPermission();
+      try {
+        await androidPlugin.createNotificationChannel(_channel);
+        // Request exact alarm / full-screen intent permission (Android 14+)
+        await androidPlugin.requestExactAlarmsPermission();
+        await androidPlugin.requestNotificationsPermission();
+      } catch (e) {
+        log('Error requesting Android notification permissions: $e',
+            name: 'PushNotificationService');
+      }
     }
 
     // 3. Initialize flutter_local_notifications
