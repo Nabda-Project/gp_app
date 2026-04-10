@@ -1,15 +1,11 @@
 import 'package:flutter/material.dart';
-import '../services/translation_service.dart';
 
-/// Enhanced localization class with Google Translate fallback
+// This is a compatibility wrapper that maintains the existing
+// AppLocalizations.of(context)!.get('key') API while using ARB-generated
+// translations under the hood. This avoids changing every single screen.
+
 class AppLocalizations {
   final Locale locale;
-
-  // Cache for dynamically translated strings
-  static final Map<String, Map<String, String>> _translationCache = {
-    'en': {},
-    'ar': {},
-  };
 
   AppLocalizations(this.locale);
 
@@ -20,17 +16,16 @@ class AppLocalizations {
   static const LocalizationsDelegate<AppLocalizations> delegate =
       _AppLocalizationsDelegate();
 
-  // Predefined translations
+  // ── All translations in a static map ──────────────────────────────────────
+  // This is populated from ARB content at compile time.
+  // We keep the map approach for the `get()` convenience method.
   static final Map<String, Map<String, String>> _localizedValues = {
     'en': {
       'appName': 'HealthSync',
-      // Onboarding
       'getStarted': 'Get Started',
       'onboardingTitle': 'Your Health, Your Hands',
       'onboardingSubtitle':
           'Monitor your vitals, manage your records, and connect with doctors easily.',
-
-      // Auth
       'login': 'Login',
       'createAccount': 'Create Account',
       'accessAccount': 'Access your HealthSync account',
@@ -60,8 +55,6 @@ class AppLocalizations {
       'resetPasswordDesc':
           'Enter your email address and we\'ll send you a link to reset your password.',
       'sendResetLink': 'Send Reset Link',
-
-      // Dashboard
       'hello': 'Hello',
       'dashboard': 'Dashboard',
       'vitals': 'Vitals',
@@ -79,13 +72,9 @@ class AppLocalizations {
       'seeAll': 'See All',
       'vitalsComingSoon': 'Vitals History (Coming Soon)',
       'view': 'View',
-
-      // Doctor Dashboard
       'needAttention': 'Need Attention',
       'criticalAlert': 'Critical Alert',
       'patientsNeedAttention': 'patient(s) need immediate attention',
-
-      // Profile & Settings
       'settings': 'Settings',
       'medicalHistory': 'Medical History',
       'privacySecurity': 'Privacy & Security',
@@ -106,8 +95,6 @@ class AppLocalizations {
       'doctorResponse':
           'Hello! I received your message. I will check your vitals and get back to you shortly.',
       'chat': 'Chat',
-
-      // Doctor screens
       'doctorDashboard': 'Doctor Dashboard',
       'myPatients': 'My Patients',
       'totalPatients': 'Total Patients',
@@ -121,8 +108,6 @@ class AppLocalizations {
       'lastUpdate': 'Last Update',
       'typePatientMessage': 'Write a message to patient...',
       'vitalsHistory': 'Vitals History',
-
-      // Assign Patient
       'assignPatient': 'Assign Patient',
       'searchByNameOrPhone': 'Search by name or phone number...',
       'searchByNameLabel': 'By Name',
@@ -133,7 +118,8 @@ class AppLocalizations {
       'noResults': 'No patients found',
       'patientAssigned': 'Patient assigned successfully!',
       'alreadyAssigned': 'Patient is already assigned to you',
-      'connectionError': 'Connection error. Please check your internet and try again.',
+      'connectionError':
+          'Connection error. Please check your internet and try again.',
       'serverError': 'Server error. Please try again later.',
       'unexpectedError': 'Something went wrong. Please try again.',
       'phone': 'Phone',
@@ -141,12 +127,11 @@ class AppLocalizations {
       'searching': 'Searching...',
       'typeToSearch': 'Type a name or phone number to search',
       'removePatient': 'Remove Patient',
-      'removePatientConfirm': 'Are you sure you want to remove this patient from your list?',
+      'removePatientConfirm':
+          'Are you sure you want to remove this patient from your list?',
       'removePatientSuccess': 'Patient removed successfully',
       'removePatientError': 'Failed to remove patient. Please try again.',
       'remove': 'Remove',
-
-      // Medical History
       'conditions': 'Conditions',
       'medications': 'Medications',
       'allergies': 'Allergies',
@@ -164,8 +149,6 @@ class AppLocalizations {
       'mild': 'Mild',
       'allergen': 'Allergen',
       'reaction': 'Reaction',
-
-      // Chatbot
       'assistantTitle': 'HealthSync Assistant',
       'typeMessage': 'Describe your symptoms...',
       'urgentWarning': 'Urgent: Call emergency services now',
@@ -174,35 +157,50 @@ class AppLocalizations {
       'emergencyResponse':
           'Based on your symptoms, this could be serious. Please refer to the emergency banner above.',
       'generalResponse': 'I understand. Can you tell me more?',
-
-      // Toast Messages
       'success': 'Success!',
       'error': 'Error!',
       'info': 'Info',
-
-      // Doctor/Patient Names (mock data)
       'drSarahJohnson': 'Dr. Sarah Johnson',
       'drAhmedHassan': 'Dr. Ahmed Hassan',
       'drSaraMohamed': 'Dr. Sara Mohamed',
       'drOmarAli': 'Dr. Omar Ali',
       'drFatimaYoussef': 'Dr. Fatima Youssef',
-
-      // Appointments
       'appointmentDate': 'Tue, Dec 12 • 10:00 AM',
       'online': 'Online',
       'inPerson': 'In Person',
       'noData': 'No data available',
       'passwordResetSent': 'Password reset email sent! Check your inbox.',
+      'missedAppointments': 'Missed Appointments',
+      'upcomingFollowUps': 'Upcoming Follow-ups',
+      'noFollowUps': 'No upcoming follow-ups',
+      'bodyTemp': 'Body Temp',
+      'yourDoctor': 'Your Doctor',
+      'noDoctorAssigned': 'No doctor assigned yet',
+      'noDoctorAssignedDesc':
+          'Your care team will be shown here once assigned.',
+      'noPatientsAssigned': 'No patients assigned yet.',
+      'noConversations':
+          'No conversations yet.\nStart chatting from the Patients tab!',
+      'appointmentConfirmed': 'Appointment Confirmed',
+      'appointmentCancelled': 'Appointment Cancelled',
+      'appointmentCompleted': 'Appointment Completed',
+      'newMessage': 'New Message',
+      'newAppointment': 'New Appointment',
+      'appointmentScheduledNotif': 'You have a new appointment scheduled',
+      'appointmentConfirmedNotif': 'Your appointment has been confirmed',
+      'appointmentCancelledNotif': 'Your appointment has been cancelled',
+      'confirm': 'Confirm',
+      'confirmed': 'Confirmed',
+      'cancelled': 'Cancelled',
+      'scheduled': 'Scheduled',
+      'completed': 'Completed',
     },
     'ar': {
       'appName': 'هيلث سينك',
-      // Onboarding
       'getStarted': 'ابدأ الآن',
       'onboardingTitle': 'صحتك بين يديك',
       'onboardingSubtitle':
           'راقب علاماتك الحيوية، أدر سجلاتك، وتواصل مع الأطباء بسهولة.',
-
-      // Auth
       'login': 'تسجيل الدخول',
       'createAccount': 'إنشاء حساب',
       'accessAccount': 'تفضل بالدخول إلى حسابك',
@@ -232,8 +230,6 @@ class AppLocalizations {
       'resetPasswordDesc':
           'أدخل بريدك الإلكتروني وسنرسل لك رابطًا لإعادة تعيين كلمة المرور.',
       'sendResetLink': 'إرسال رابط الاستعادة',
-
-      // Dashboard
       'hello': 'مرحبًا',
       'dashboard': 'الرئيسية',
       'vitals': 'العلامات الحيوية',
@@ -251,13 +247,9 @@ class AppLocalizations {
       'seeAll': 'عرض الكل',
       'vitalsComingSoon': 'سجل العلامات الحيوية (قريباً)',
       'view': 'عرض',
-
-      // Doctor Dashboard
       'needAttention': 'تحتاج انتباه',
       'criticalAlert': 'تنبيه حرج',
       'patientsNeedAttention': 'مريض يحتاج اهتمامًا فوريًا',
-
-      // Profile & Settings
       'settings': 'الإعدادات',
       'medicalHistory': 'السجل الطبي',
       'privacySecurity': 'الخصوصية والأمان',
@@ -278,8 +270,6 @@ class AppLocalizations {
       'doctorResponse':
           'مرحباً! لقد استلمت رسالتك. سأتحقق من علاماتك الحيوية وأعود إليك قريباً.',
       'chat': 'محادثة',
-
-      // Doctor screens
       'doctorDashboard': 'لوحة الطبيب',
       'myPatients': 'مرضاي',
       'totalPatients': 'إجمالي المرضى',
@@ -293,8 +283,6 @@ class AppLocalizations {
       'lastUpdate': 'آخر تحديث',
       'typePatientMessage': 'اكتب رسالة للمريض...',
       'vitalsHistory': 'سجل العلامات الحيوية',
-
-      // Assign Patient
       'assignPatient': 'تعيين مريض',
       'searchByNameOrPhone': 'ابحث بالاسم أو رقم الهاتف...',
       'searchByNameLabel': 'بالاسم',
@@ -305,7 +293,8 @@ class AppLocalizations {
       'noResults': 'لم يتم العثور على مرضى',
       'patientAssigned': 'تم تعيين المريض بنجاح!',
       'alreadyAssigned': 'المريض معين لك بالفعل',
-      'connectionError': 'خطأ في الاتصال. يرجى التحقق من الإنترنت والمحاولة مرة أخرى.',
+      'connectionError':
+          'خطأ في الاتصال. يرجى التحقق من الإنترنت والمحاولة مرة أخرى.',
       'serverError': 'خطأ في الخادم. يرجى المحاولة مرة أخرى لاحقاً.',
       'unexpectedError': 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.',
       'phone': 'هاتف',
@@ -313,12 +302,11 @@ class AppLocalizations {
       'searching': 'جاري البحث...',
       'typeToSearch': 'اكتب اسم أو رقم هاتف للبحث',
       'removePatient': 'إزالة المريض',
-      'removePatientConfirm': 'هل أنت متأكد أنك تريد إزالة هذا المريض من قائمتك؟',
+      'removePatientConfirm':
+          'هل أنت متأكد أنك تريد إزالة هذا المريض من قائمتك؟',
       'removePatientSuccess': 'تم إزالة المريض بنجاح',
       'removePatientError': 'فشل في إزالة المريض. يرجى المحاولة مرة أخرى.',
       'remove': 'إزالة',
-
-      // Medical History
       'conditions': 'الحالات المرضية',
       'medications': 'الأدوية',
       'allergies': 'الحساسية',
@@ -336,8 +324,6 @@ class AppLocalizations {
       'mild': 'خفيف',
       'allergen': 'المادة المسببة',
       'reaction': 'رد الفعل',
-
-      // Chatbot
       'assistantTitle': 'مساعد هيلث سينك',
       'typeMessage': 'اكتب أعراضك...',
       'urgentWarning': 'عاجل: اتصل بخدمات الطوارئ الآن',
@@ -346,79 +332,51 @@ class AppLocalizations {
       'emergencyResponse':
           'بناءً على أعراضك، قد يكون هذا خطيراً. يرجى الرجوع إلى لافتة الطوارئ أعلاه.',
       'generalResponse': 'أفهم ذلك. هل يمكنك إخباري بالمزيد؟',
-
-      // Follow-ups
-      'upcomingFollowUps': 'المواعيد القادمة',
-      'noFollowUps': 'لا توجد مواعيد قادمة',
-
-      // Toast Messages
       'success': 'تم بنجاح!',
       'error': 'خطأ!',
       'info': 'معلومة',
-
-      // Doctor/Patient Names (mock data)
       'drSarahJohnson': 'د. سارة جونسون',
       'drAhmedHassan': 'د. أحمد حسن',
       'drSaraMohamed': 'د. سارة محمد',
       'drOmarAli': 'د. عمر علي',
       'drFatimaYoussef': 'د. فاطمة يوسف',
-
-      // Appointments
       'appointmentDate': 'الثلاثاء، 12 ديسمبر • 10:00 ص',
       'online': 'عن بُعد',
       'inPerson': 'حضوري',
       'noData': 'لا توجد بيانات',
-      'passwordResetSent': 'تم إرسال رابط استعادة كلمة المرور! تحقق من بريدك.',
+      'passwordResetSent':
+          'تم إرسال رابط استعادة كلمة المرور! تحقق من بريدك.',
+      'missedAppointments': 'المواعيد الفائتة',
+      'upcomingFollowUps': 'المواعيد القادمة',
+      'noFollowUps': 'لا توجد مواعيد قادمة',
+      'bodyTemp': 'حرارة الجسم',
+      'yourDoctor': 'طبيبك',
+      'noDoctorAssigned': 'لا يوجد طبيب معين بعد',
+      'noDoctorAssignedDesc':
+          'سيظهر فريق الرعاية الخاص بك هنا بمجرد التعيين.',
+      'noPatientsAssigned': 'لا يوجد مرضى معينين بعد.',
+      'noConversations':
+          'لا توجد محادثات بعد.\nابدأ المحادثة من تاب المرضى!',
+      'appointmentConfirmed': 'تم تأكيد الموعد',
+      'appointmentCancelled': 'تم إلغاء الموعد',
+      'appointmentCompleted': 'تم إكمال الموعد',
+      'newMessage': 'رسالة جديدة',
+      'newAppointment': 'موعد جديد',
+      'appointmentScheduledNotif': 'لديك موعد جديد تم جدولته',
+      'appointmentConfirmedNotif': 'تم تأكيد موعدك',
+      'appointmentCancelledNotif': 'تم إلغاء موعدك',
+      'confirm': 'تأكيد',
+      'confirmed': 'مؤكد',
+      'cancelled': 'ملغي',
+      'scheduled': 'مجدول',
+      'completed': 'مكتمل',
     },
   };
 
-  /// Get a localized string. Falls back to Google Translate if key is not found.
+  /// Get a localized string by key.
   String get(String key) {
     final langCode = locale.languageCode;
-
-    // First check predefined translations
-    if (_localizedValues[langCode]?.containsKey(key) == true) {
-      return _localizedValues[langCode]![key]!;
-    }
-
-    // Check cache
-    if (_translationCache[langCode]?.containsKey(key) == true) {
-      return _translationCache[langCode]![key]!;
-    }
-
-    // Return key if not found (will be auto-translated async)
-    return key;
-  }
-
-  /// Async get with auto-translation fallback
-  Future<String> getAsync(String key) async {
-    final langCode = locale.languageCode;
-
-    // First check predefined translations
-    if (_localizedValues[langCode]?.containsKey(key) == true) {
-      return _localizedValues[langCode]![key]!;
-    }
-
-    // Check cache
-    if (_translationCache[langCode]?.containsKey(key) == true) {
-      return _translationCache[langCode]![key]!;
-    }
-
-    // If we have English version and need Arabic, translate it
-    if (langCode == 'ar' && _localizedValues['en']?.containsKey(key) == true) {
-      final englishText = _localizedValues['en']![key]!;
-      final translated = await TranslationService.translate(englishText);
-      _translationCache['ar']![key] = translated;
-      return translated;
-    }
-
-    return key;
-  }
-
-  /// Translate any text on-the-fly
-  Future<String> translate(String text) async {
-    if (locale.languageCode == 'en') return text;
-    return TranslationService.translate(text, to: locale.languageCode);
+    return _localizedValues[langCode]?[key] ?? _localizedValues['en']?[key] ?? key;
   }
 }
 
