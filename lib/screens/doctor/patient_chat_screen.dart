@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/chat_message_model.dart';
 import '../../services/chat_service.dart';
+import '../../services/notification_api_service.dart';
 import '../../services/presence_service.dart';
 import '../../services/storage_service.dart';
 import '../../utils/constants.dart';
@@ -107,6 +108,9 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
 
     // Mark messages from this patient as read
     _chatService!.markAsRead(_patientId);
+
+    // Auto-clear CHAT notifications for this patient from the notification table
+    NotificationApiService.deleteChatNotifications(_myId, _patientId);
 
     // Fetch initial presence
     _fetchPresence();

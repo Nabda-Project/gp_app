@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/chat_message_model.dart';
 import '../../services/chat_service.dart';
+import '../../services/notification_api_service.dart';
 import '../../services/presence_service.dart';
 import '../../services/storage_service.dart';
 import '../../utils/constants.dart';
@@ -84,6 +85,9 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
 
     // Mark messages from the doctor as read
     _chatService!.markAsRead(_doctorId);
+
+    // Auto-clear CHAT notifications for this doctor from the notification table
+    NotificationApiService.deleteChatNotifications(_myId, _doctorId);
 
     // Fetch initial presence
     _fetchPresence();

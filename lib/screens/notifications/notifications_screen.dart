@@ -192,67 +192,32 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
-  /// Delete a notification — shows confirmation dialog first.
+  /// Delete a notification — no confirmation, instant delete.
   Future<void> _deleteNotification(NotificationItem item) async {
-    final loc = AppLocalizations.of(context)!;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          loc.get('deleteNotification'),
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: AppColors.darkBlue,
-          ),
-        ),
-        content: Text(
-          loc.get('deleteNotificationConfirm'),
-          style: const TextStyle(color: AppColors.grey),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(
-              loc.get('cancel'),
-              style: const TextStyle(color: AppColors.grey),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.error,
-            ),
-            child: Text(loc.get('delete')),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
     final user = StorageService.getUser();
     if (user?.backendId == null) return;
 
-    // 1) Remove from local list instantly with animation
+    // 1) Remove from local list instantly
     setState(() {
       _notifications.removeWhere((n) => n.id == item.id);
     });
 
     // 2) Fire API in background
     await NotificationApiService.deleteNotification(item.id, user!.backendId!);
+  }
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(loc.get('notificationDeleted')),
-          duration: const Duration(seconds: 1),
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
-    }
+  /// Delete ALL notifications.
+  Future<void> _deleteAllNotifications() async {
+    final user = StorageService.getUser();
+    if (user?.backendId == null) return;
+
+    // 1) Clear local list instantly
+    setState(() {
+      _notifications.clear();
+    });
+
+    // 2) Fire API in background
+    await NotificationApiService.deleteAllNotifications(user!.backendId!);
   }
 
   void _onNotificationTap(NotificationItem item) async {
@@ -347,6 +312,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 AppLocalizations.of(context)!.get('markAllRead'),
                 style: const TextStyle(fontSize: 13),
               ),
+            ),
+          if (_notifications.isNotEmpty)
+            IconButton(
+              onPressed: _deleteAllNotifications,
+              icon: const Icon(
+                Icons.delete_sweep_rounded,
+                color: AppColors.error,
+              ),
+              tooltip: AppLocalizations.of(context)!.get('deleteAll'),
             ),
         ],
       ),
