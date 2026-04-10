@@ -9,6 +9,7 @@ class ApiEndpoints {
 
   // ─── User ───
   static const String currentUser = '/user/me';
+  static const String updateFcmToken = '/user/fcm-token';
 
   // ─── Doctor ───
   static const String assignPatient = '/doctor/assign';
@@ -43,4 +44,14 @@ class ApiEndpoints {
   static String doctorAppointments(int doctorId) => '/appointments/doctor/$doctorId';
   static String nextAppointment(int patientId) => '/appointments/patient/$patientId/next';
   static String updateAppointmentStatus(int appointmentId) => '/appointments/$appointmentId/status';
+
+  // ─── Notifications ───
+  static String notifications(int userId, {int page = 0, int size = 20}) => '/notifications/$userId?page=$page&size=$size';
+  static String notificationsUnreadCount(int userId) => '/notifications/$userId/unread-count';
+  static String notificationMarkRead(int notificationId, int userId) => '/notifications/$notificationId/read/$userId';
+  static String notificationsMarkAllRead(int userId) => '/notifications/$userId/read-all';
+  static String notificationsMarkChatRead(int userId, int senderId) => '/notifications/$userId/read-chat/$senderId';
+  static String notificationsMarkAppointmentsRead(int userId) => '/notifications/$userId/read-appointments';
+  static String notificationDelete(int notificationId, int userId) => '/notifications/$notificationId/user/$userId';
+  static String notificationDeleteChatNotifications(int userId, int senderId) => '/notifications/$userId/chat/$senderId';
 }

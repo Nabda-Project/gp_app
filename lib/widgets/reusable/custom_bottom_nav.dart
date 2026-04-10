@@ -61,13 +61,53 @@ class CustomBottomNavBar extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            isSelected ? item.activeIcon : item.icon,
-                            color:
-                                isSelected
-                                    ? AppColors.primaryBlue
-                                    : AppColors.grey,
-                            size: isSelected ? 24 : 22,
+                          // Icon with optional badge
+                          Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Icon(
+                                isSelected ? item.activeIcon : item.icon,
+                                color:
+                                    isSelected
+                                        ? AppColors.primaryBlue
+                                        : AppColors.grey,
+                                size: isSelected ? 24 : 22,
+                              ),
+                              if (item.badgeCount > 0)
+                                Positioned(
+                                  top: -6,
+                                  right: -8,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                      vertical: 1,
+                                    ),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 16,
+                                      minHeight: 16,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.redAccent,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                        color: Colors.white,
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      item.badgeCount > 99
+                                          ? '99+'
+                                          : '${item.badgeCount}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                           if (isSelected) ...[
                             const SizedBox(width: 6),
@@ -101,10 +141,12 @@ class CustomNavItem {
   final IconData icon;
   final IconData activeIcon;
   final String label;
+  final int badgeCount;
 
   const CustomNavItem({
     required this.icon,
     required this.activeIcon,
     required this.label,
+    this.badgeCount = 0,
   });
 }

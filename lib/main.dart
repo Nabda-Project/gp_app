@@ -6,6 +6,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'services/storage_service.dart';
 import 'services/notification_service.dart';
+import 'services/push_notification_service.dart';
 import 'models/settings_model.dart';
 import 'utils/app_localizations.dart';
 import 'theme/app_theme.dart';
@@ -19,6 +20,8 @@ void main() async {
   } catch (e) {
     log("StorageService Init Failed: $e", name: 'Main');
   }
+  // Initialize push notifications (FCM + local notifications)
+  await PushNotificationService.initialize();
   runApp(const GPApp());
 }
 
@@ -56,6 +59,17 @@ class GPApp extends StatelessWidget {
               }
             }
             return supportedLocales.first;
+          },
+          builder: (context, child) {
+            final mediaQuery = MediaQuery.of(context);
+            final clampedScaler = mediaQuery.textScaler.clamp(
+              minScaleFactor: 1.0,
+              maxScaleFactor: 1.3,
+            );
+            return MediaQuery(
+              data: mediaQuery.copyWith(textScaler: clampedScaler),
+              child: child!,
+            );
           },
           initialRoute: AppRoutes.splash,
           routes: AppRoutes.routes,

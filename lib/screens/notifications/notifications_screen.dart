@@ -1,8 +1,12 @@
+import 'dart:developer';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../utils/constants.dart';
 import '../../utils/app_localizations.dart';
 import '../../widgets/reusable/decorated_background.dart';
 import '../../widgets/animations/animated_list_item.dart';
+import '../../services/notification_api_service.dart';
+import '../../services/storage_service.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -12,156 +16,557 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  // Mock Data - In a real app, this would be fetched from a service/provider
-  final List<Map<String, String>> _notifications = [
-    {
-      "title": "Hydration Reminder",
-      "message": "It's time to drink a glass of water.",
-      "time": "10:30 AM",
-      "isRead": "false",
-    },
-    {
-      "title": "Appointment Confirmation",
-      "message": "Your appointment with Dr. Sarah is confirmed for tomorrow.",
-      "time": "Yesterday",
-      "isRead": "true",
-    },
-    {
-      "title": "Vitals Alert",
-      "message": "Your heart rate was slightly elevated yesterday.",
-      "time": "Yesterday",
-      "isRead": "true",
-    },
-  ];
+  final ScrollController _scrollController = ScrollController();
+  List<NotificationItem> _notifications = [];
+  bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int _currentPage = 0;
 
-  void _markAllAsRead() {
-    setState(() {
-      for (var notification in _notifications) {
-        notification['isRead'] = "true";
+  @override
+  void initState() {
+    super.initState();
+    _fetchNotifications();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _fetchNotifications({bool refresh = false}) async {
+    if (refresh) {
+      if (mounted) {
+        setState(() {
+          _currentPage = 0;
+          _hasMore = true;
+        });
       }
+    }
+    final user = StorageService.getUser();
+    if (user?.backendId == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    try {
+      final notifications = await NotificationApiService.getNotifications(
+        user!.backendId!,
+        page: _currentPage,
+      );
+      if (mounted) {
+        setState(() {
+          if (refresh) {
+            _notifications = notifications;
+          } else {
+            _notifications.addAll(notifications);
+          }
+          if (notifications.isEmpty || notifications.length < 20) {
+            _hasMore = false;
+          }
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      log('Failed to load notifications: $e', name: 'NotificationsScreen');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_isLoadingMore || !_hasMore || _isLoading) return;
+    
+    setState(() => _isLoadingMore = true);
+    _currentPage++;
+    
+    final user = StorageService.getUser();
+    if (user?.backendId == null) return;
+    
+    try {
+      final notifications = await NotificationApiService.getNotifications(
+        user!.backendId!,
+        page: _currentPage,
+      );
+      if (mounted) {
+        setState(() {
+          _notifications.addAll(notifications);
+          if (notifications.isEmpty || notifications.length < 20) {
+            _hasMore = false;
+          }
+          _isLoadingMore = false;
+        });
+      }
+    } catch (e) {
+      log('Failed to load more notifications: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingMore = false;
+          _currentPage--; // Revert page on failure
+        });
+      }
+    }
+  }
+
+  /// Mark ALL as read — instant UI update then API call.
+  Future<void> _markAllAsRead() async {
+    final user = StorageService.getUser();
+    if (user?.backendId == null) return;
+
+    // 1) Instant local state update — remove all blue dots immediately
+    setState(() {
+      _notifications = _notifications
+          .map((n) => NotificationItem(
+                id: n.id,
+                userId: n.userId,
+                type: n.type,
+                title: n.title,
+                body: n.body,
+                relatedId: n.relatedId,
+                relatedName: n.relatedName,
+                isRead: true,
+                createdAt: n.createdAt,
+              ))
+          .toList();
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(AppLocalizations.of(context)!.get('markAllRead')),
-        duration: const Duration(seconds: 1),
+
+    // 2) Fire API in background
+    await NotificationApiService.markAllAsRead(user!.backendId!);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.get('markAllRead')),
+          duration: const Duration(seconds: 1),
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
+  }
+
+  /// Mark a single notification as read — instant UI update.
+  Future<void> _markAsRead(NotificationItem item) async {
+    if (item.isRead) return;
+    final user = StorageService.getUser();
+    if (user?.backendId == null) return;
+
+    // 1) Instant local state update — remove blue dot immediately
+    final index = _notifications.indexWhere((n) => n.id == item.id);
+    if (index != -1) {
+      setState(() {
+        _notifications[index] = NotificationItem(
+          id: item.id,
+          userId: item.userId,
+          type: item.type,
+          title: item.title,
+          body: item.body,
+          relatedId: item.relatedId,
+          relatedName: item.relatedName,
+          isRead: true,
+          createdAt: item.createdAt,
+        );
+      });
+    }
+
+    // 2) Fire API in background
+    await NotificationApiService.markAsRead(item.id, user!.backendId!);
+
+    // If it's a CHAT notification, also mark chat notifications from that sender
+    if (item.type == 'CHAT' && item.relatedId != null) {
+      await NotificationApiService.markChatAsRead(
+          user.backendId!, item.relatedId!);
+    }
+  }
+
+  /// Delete a notification — shows confirmation dialog first.
+  Future<void> _deleteNotification(NotificationItem item) async {
+    final loc = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          loc.get('deleteNotification'),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppColors.darkBlue,
+          ),
+        ),
+        content: Text(
+          loc.get('deleteNotificationConfirm'),
+          style: const TextStyle(color: AppColors.grey),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              loc.get('cancel'),
+              style: const TextStyle(color: AppColors.grey),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.error,
+            ),
+            child: Text(loc.get('delete')),
+          ),
+        ],
       ),
     );
+
+    if (confirmed != true) return;
+
+    final user = StorageService.getUser();
+    if (user?.backendId == null) return;
+
+    // 1) Remove from local list instantly with animation
+    setState(() {
+      _notifications.removeWhere((n) => n.id == item.id);
+    });
+
+    // 2) Fire API in background
+    await NotificationApiService.deleteNotification(item.id, user!.backendId!);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(loc.get('notificationDeleted')),
+          duration: const Duration(seconds: 1),
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
+  }
+
+  void _onNotificationTap(NotificationItem item) async {
+    // Mark as read first
+    await _markAsRead(item);
+
+    if (!mounted) return;
+
+    // Navigate to relevant screen
+    if (item.type == 'CHAT' && item.relatedId != null) {
+      // Navigate to the chat with this person
+      Navigator.pushNamed(
+        context,
+        '/doctor_chat',
+        arguments: {
+          'doctorName': item.relatedName,
+          'doctorId': item.relatedId,
+        },
+      );
+    }
+    // For appointment notifications, no specific navigation needed —
+    // the dashboard already shows the updated appointment.
+  }
+
+  IconData _getIconForType(String type) {
+    switch (type) {
+      case 'CHAT':
+        return Icons.chat_bubble_rounded;
+      case 'APPOINTMENT_SCHEDULED':
+        return Icons.calendar_today_rounded;
+      case 'APPOINTMENT_CONFIRMED':
+        return Icons.check_circle_rounded;
+      case 'APPOINTMENT_CANCELLED':
+        return Icons.cancel_rounded;
+      case 'APPOINTMENT_COMPLETED':
+        return Icons.task_alt_rounded;
+      default:
+        return Icons.notifications_rounded;
+    }
+  }
+
+  Color _getColorForType(String type) {
+    switch (type) {
+      case 'CHAT':
+        return AppColors.primaryBlue;
+      case 'APPOINTMENT_SCHEDULED':
+        return Colors.purple;
+      case 'APPOINTMENT_CONFIRMED':
+        return AppColors.accentTeal;
+      case 'APPOINTMENT_CANCELLED':
+        return AppColors.error;
+      case 'APPOINTMENT_COMPLETED':
+        return Colors.green;
+      default:
+        return AppColors.grey;
+    }
+  }
+
+  String _formatTime(DateTime? dt) {
+    if (dt == null) return '';
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return DateFormat('MMM d').format(dt);
   }
 
   @override
   Widget build(BuildContext context) {
+    final hasUnread = _notifications.any((n) => !n.isRead);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(
           AppLocalizations.of(context)!.get('notificationsTitle'),
-          style: const TextStyle(color: AppColors.darkBlue),
+          style: const TextStyle(
+            color: AppColors.darkBlue,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         backgroundColor: AppColors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: AppColors.darkBlue),
         actions: [
-          TextButton(
-            onPressed: _markAllAsRead,
-            child: Text(AppLocalizations.of(context)!.get('markAllRead')),
-          ),
+          if (hasUnread)
+            TextButton(
+              onPressed: _markAllAsRead,
+              child: Text(
+                AppLocalizations.of(context)!.get('markAllRead'),
+                style: const TextStyle(fontSize: 13),
+              ),
+            ),
         ],
       ),
       body: DecoratedBackground(
-        child:
-            _notifications.isEmpty
+        child: _isLoading
+            ? const Center(
+                child:
+                    CircularProgressIndicator(color: AppColors.primaryBlue))
+            : _notifications.isEmpty
                 ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.notifications_off_outlined,
-                        size: 64,
-                        color: AppColors.grey,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        AppLocalizations.of(context)!.get('noNotifications'),
-                        style: const TextStyle(
-                          color: AppColors.grey,
-                          fontSize: 16,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.notifications_off_outlined,
+                          size: 64,
+                          color: AppColors.grey.withValues(alpha: 0.4),
                         ),
-                      ),
-                    ],
-                  ),
-                )
-                : ListView.builder(
-                  padding: const EdgeInsets.all(AppDimensions.paddingM),
-                  itemCount: _notifications.length,
-                  itemBuilder: (context, index) {
-                    final item = _notifications[index];
-                    final isRead = item['isRead'] == 'true';
-                    return AnimatedListItem(
-                      index: index,
-                      child: Container(
-                        margin: const EdgeInsets.only(
-                          bottom: AppDimensions.paddingS,
+                        const SizedBox(height: 16),
+                        Text(
+                          AppLocalizations.of(context)!
+                              .get('noNotifications'),
+                          style: TextStyle(
+                            color: AppColors.grey.withValues(alpha: 0.7),
+                            fontSize: 16,
+                          ),
                         ),
-                        decoration: BoxDecoration(
-                          color: isRead ? AppColors.white : Colors.blue.shade50,
-                          borderRadius: BorderRadius.circular(
-                            AppDimensions.radiusM,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.05),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
+                      ],
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: () => _fetchNotifications(refresh: true),
+                    child: ListView.builder(
+                      controller: _scrollController,
+                      padding:
+                          const EdgeInsets.all(AppDimensions.paddingM),
+                      itemCount: _notifications.length + (_hasMore ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (index == _notifications.length) {
+                          return const Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                  color: AppColors.primaryBlue),
                             ),
-                          ],
-                        ),
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor:
-                                isRead
-                                    ? AppColors.lightGrey
-                                    : AppColors.primaryBlue.withValues(
-                                      alpha: 0.2,
-                                    ),
-                            child: Icon(
-                              Icons.notifications,
-                              color:
-                                  isRead
-                                      ? AppColors.grey
-                                      : AppColors.primaryBlue,
+                          );
+                        }
+
+                        final item = _notifications[index];
+                        final typeColor = _getColorForType(item.type);
+
+                        return AnimatedListItem(
+                          index: index,
+                          child: Container(
+                            margin: const EdgeInsets.only(
+                              bottom: AppDimensions.paddingS,
                             ),
-                          ),
-                          title: Text(
-                            item['title']!,
-                            style: TextStyle(
-                              fontWeight:
-                                  isRead ? FontWeight.normal : FontWeight.bold,
-                              color: AppColors.darkBlue,
-                            ),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const SizedBox(height: 4),
-                              Text(
-                                item['message']!,
-                                style: const TextStyle(color: AppColors.grey),
+                            decoration: BoxDecoration(
+                              color: item.isRead
+                                  ? AppColors.white
+                                  : typeColor.withValues(alpha: 0.06),
+                              borderRadius: BorderRadius.circular(
+                                AppDimensions.radiusM,
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                item['time']!,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.grey,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black
+                                      .withValues(alpha: 0.04),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                              border: item.isRead
+                                  ? null
+                                  : Border.all(
+                                      color: typeColor
+                                          .withValues(alpha: 0.15),
+                                      width: 1,
+                                    ),
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () => _onNotificationTap(item),
+                                borderRadius: BorderRadius.circular(
+                                  AppDimensions.radiusM,
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal:
+                                        AppDimensions.paddingM,
+                                    vertical: 14,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      // Icon
+                                      Container(
+                                        width: 44,
+                                        height: 44,
+                                        decoration: BoxDecoration(
+                                          color: typeColor.withValues(
+                                              alpha: item.isRead
+                                                  ? 0.08
+                                                  : 0.15),
+                                          borderRadius:
+                                              BorderRadius.circular(
+                                                  12),
+                                        ),
+                                        child: Icon(
+                                          _getIconForType(item.type),
+                                          color: item.isRead
+                                              ? AppColors.grey
+                                              : typeColor,
+                                          size: 22,
+                                        ),
+                                      ),
+                                      const SizedBox(
+                                          width:
+                                              AppDimensions.paddingM),
+                                      // Content
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    item.title,
+                                                    style: TextStyle(
+                                                      fontWeight: item
+                                                              .isRead
+                                                          ? FontWeight
+                                                              .w500
+                                                          : FontWeight
+                                                              .bold,
+                                                      color: AppColors
+                                                          .darkBlue,
+                                                      fontSize: 14,
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow
+                                                            .ellipsis,
+                                                  ),
+                                                ),
+                                                if (!item.isRead)
+                                                  Container(
+                                                    width: 8,
+                                                    height: 8,
+                                                    margin:
+                                                        const EdgeInsets
+                                                            .only(
+                                                            left: 8),
+                                                    decoration:
+                                                        BoxDecoration(
+                                                      color: typeColor,
+                                                      shape: BoxShape
+                                                          .circle,
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              item.body,
+                                              style: const TextStyle(
+                                                color: AppColors.grey,
+                                                fontSize: 13,
+                                              ),
+                                              maxLines: 2,
+                                              overflow:
+                                                  TextOverflow.ellipsis,
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              _formatTime(
+                                                  item.createdAt),
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: AppColors.grey
+                                                    .withValues(
+                                                        alpha: 0.7),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      // Delete button
+                                      const SizedBox(width: 4),
+                                      SizedBox(
+                                        width: 36,
+                                        height: 36,
+                                        child: IconButton(
+                                          onPressed: () =>
+                                              _deleteNotification(item),
+                                          icon: Icon(
+                                            Icons.delete_outline_rounded,
+                                            color: AppColors.grey
+                                                .withValues(alpha: 0.5),
+                                            size: 20,
+                                          ),
+                                          padding: EdgeInsets.zero,
+                                          splashRadius: 18,
+                                          tooltip: AppLocalizations.of(
+                                                  context)!
+                                              .get('deleteNotification'),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ],
+                            ),
                           ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                        );
+                      },
+                    ),
+                  ),
       ),
     );
   }

@@ -1,6 +1,6 @@
 name: gp_app
 description: "A new Flutter project."
-publish_to: 'none'
+publish_to: "none"
 version: 0.1.0
 
 environment:
@@ -19,13 +19,14 @@ dependencies:
   firebase_auth: ^5.3.4
   google_sign_in: ^6.2.2
   cloud_firestore: ^5.4.4
-  translator: ^1.0.0
+
   http: ^1.6.0
   dio: ^5.4.0
   flutter_secure_storage: ^9.2.4
   stomp_dart_client: ^2.0.0
   web_socket_channel: ^3.0.0
-
+  firebase_messaging: ^15.2.4
+  flutter_local_notifications: ^19.0.0
 
 dev_dependencies:
   flutter_test:
@@ -33,4 +34,5 @@ dev_dependencies:
   flutter_lints: ^5.0.0
 
 flutter:
+  generate: true
   uses-material-design: true
