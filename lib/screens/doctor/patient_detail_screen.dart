@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:developer';
 import '../../utils/constants.dart';
 import '../../widgets/reusable/vital_card.dart';
 import '../../widgets/reusable/status_card.dart';
@@ -6,6 +7,7 @@ import '../../widgets/reusable/decorated_background.dart';
 import '../../utils/app_localizations.dart';
 import '../../services/storage_service.dart';
 import '../../services/appointment_api_service.dart';
+import '../../services/doctor_api_service.dart';
 
 class PatientDetailScreen extends StatefulWidget {
   const PatientDetailScreen({super.key});
@@ -41,6 +43,25 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
         backgroundColor: AppColors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: AppColors.darkBlue),
+        actions: [
+          IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                Icons.person_remove_rounded,
+                color: AppColors.error,
+                size: 20,
+              ),
+            ),
+            tooltip: AppLocalizations.of(context)!.get('removePatient'),
+            onPressed: () => _removePatientFromDetail(context, patient),
+          ),
+          const SizedBox(width: 4),
+        ],
       ),
       body: DecoratedBackground(
         child: SingleChildScrollView(
@@ -335,6 +356,158 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
           SnackBar(
             content: Text('Failed to schedule: $e'),
             backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Remove (unlink) the patient from the current doctor, with confirmation.
+  Future<void> _removePatientFromDetail(
+    BuildContext context,
+    Map<String, dynamic> patient,
+  ) async {
+    final loc = AppLocalizations.of(context)!;
+    final user = StorageService.getUser();
+    final doctorId = user?.backendId;
+    if (doctorId == null) return;
+
+    final int patientId =
+        patient['backendId'] ?? int.tryParse(patient['id'].toString()) ?? 0;
+    if (patientId == 0) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(Icons.person_remove_rounded, color: AppColors.error, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                loc.get('removePatient'),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: AppColors.darkBlue,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              loc.get('removePatientConfirm'),
+              style: const TextStyle(color: AppColors.grey, fontSize: 14),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.lightGrey.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor: AppColors.primaryBlue.withValues(alpha: 0.1),
+                    child: Text(
+                      (patient['name'] ?? '?').toString().isNotEmpty
+                          ? patient['name'].toString()[0].toUpperCase()
+                          : '?',
+                      style: const TextStyle(
+                        color: AppColors.primaryBlue,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      patient['name'] ?? 'Unknown',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.darkBlue,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(
+              loc.get('cancel'),
+              style: const TextStyle(color: AppColors.grey),
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            icon: const Icon(Icons.delete_rounded, size: 18),
+            label: Text(loc.get('remove')),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    try {
+      await DoctorApiService.removePatient(doctorId, patientId);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    loc.get('removePatientSuccess'),
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: AppColors.accentTeal,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+        Navigator.of(context).pop(true); // return true to signal removal
+      }
+    } catch (e) {
+      log('Failed to remove patient from detail: $e', name: 'PatientDetail');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(loc.get('removePatientError')),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            margin: const EdgeInsets.all(16),
           ),
         );
       }

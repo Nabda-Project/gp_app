@@ -137,9 +137,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   ],
                 ),
                 padding: const EdgeInsets.all(AppDimensions.paddingL),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     FadeSlideTransition(
                       delay: const Duration(milliseconds: 500),
@@ -172,6 +173,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   ],
                 ),
               ),
+            ),
             ),
           ),
         ],

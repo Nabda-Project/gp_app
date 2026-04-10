@@ -466,8 +466,9 @@ class _AuthScreenState extends State<AuthScreen>
   Widget _buildLoginForm() {
     return Form(
       key: _loginFormKey,
-      child: Column(
-        children: [
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
           _buildTextField(
             AppLocalizations.of(context)!.get('emailAddress'),
             Icons.email,
@@ -517,6 +518,7 @@ class _AuthScreenState extends State<AuthScreen>
           const SizedBox(height: AppDimensions.paddingM),
           _buildSocialButtons(),
         ],
+      ),
       ),
     );
   }

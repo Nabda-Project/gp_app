@@ -3,6 +3,7 @@ import '../../utils/constants.dart';
 import '../../utils/app_localizations.dart';
 import '../../models/appointment_model.dart';
 import '../../services/appointment_api_service.dart';
+import '../../services/notification_api_service.dart';
 import '../../services/storage_service.dart';
 import '../../widgets/reusable/decorated_background.dart';
 import '../../widgets/animations/fade_slide_transition.dart';
@@ -21,11 +22,27 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
   bool _isLoading = true;
   List<AppointmentModel> _appointments = [];
   String? _errorMessage;
+  bool _todayOnly = false;
+  int _initialIndex = 0;
 
   @override
   void initState() {
     super.initState();
     _fetchAppointments();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    if (args != null) {
+      if (args['todayOnly'] == true) {
+        _todayOnly = true;
+      }
+      if (args['initialIndex'] != null) {
+        _initialIndex = args['initialIndex'];
+      }
+    }
   }
 
   Future<void> _fetchAppointments() async {
@@ -42,6 +59,9 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
       final appointments = await AppointmentApiService.getDoctorAppointments(
         user!.backendId!,
       );
+      // Auto mark appointment notifications as read when viewing this screen
+      NotificationApiService.markAppointmentsAsRead(user.backendId!);
+
       setState(() {
         _appointments = appointments;
         _isLoading = false;
@@ -101,18 +121,23 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 4,
+      initialIndex: _initialIndex,
       child: Scaffold(
         backgroundColor: AppColors.background,
         appBar: AppBar(
-          title: Text(
-            AppLocalizations.of(context)!.get('appointments'),
-            style: const TextStyle(
+           title: Text(
+            _initialIndex == 1
+                ? (AppLocalizations.of(context)?.get('missedAppointments') ?? 'المواعيد الفائتة')
+                : _todayOnly
+                    ? (AppLocalizations.of(context)!.get('todayAppointments'))
+                    : AppLocalizations.of(context)!.get('appointments'),
+             style: const TextStyle(
               color: AppColors.darkBlue,
               fontWeight: FontWeight.w800,
               fontSize: 22,
             ),
-          ),
+           ),
           backgroundColor: AppColors.white,
           elevation: 0,
           centerTitle: false,
@@ -149,14 +174,16 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
                   labelColor: AppColors.primaryBlue,
                   unselectedLabelColor: AppColors.grey,
                   dividerColor: Colors.transparent,
+                  labelPadding: const EdgeInsets.symmetric(horizontal: 4),
                   labelStyle: const TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                    fontSize: 12,
                   ),
                   tabs: const [
-                    Tab(height: 48, child: Text('Upcoming')),
-                    Tab(height: 48, child: Text('Completed')),
-                    Tab(height: 48, child: Text('Cancelled')),
+                    Tab(height: 48, child: Text('Upcoming', textAlign: TextAlign.center)),
+                    Tab(height: 48, child: Text('Missed', textAlign: TextAlign.center)),
+                    Tab(height: 48, child: Text('Completed', textAlign: TextAlign.center)),
+                    Tab(height: 48, child: Text('Cancelled', textAlign: TextAlign.center)),
                   ],
                 ),
               ),
@@ -190,6 +217,7 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
                         : TabBarView(
                           children: [
                             _buildUpcomingTab(),
+                            _buildMissedTab(),
                             _buildStatusTab('COMPLETED'),
                             _buildStatusTab('CANCELLED'),
                           ],
@@ -228,20 +256,31 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
   }
 
   Widget _buildUpcomingTab() {
-    final upcoming =
+    var upcoming =
         _appointments.where((a) => a.status == 'SCHEDULED').toList();
+
+    // Only show today and future appointments
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    
+    upcoming = upcoming.where((a) {
+      final apptDateLocal = a.appointmentDate.toLocal();
+      final apptDay = DateTime(apptDateLocal.year, apptDateLocal.month, apptDateLocal.day);
+      
+      if (_todayOnly) {
+        return apptDay.isAtSameMomentAs(today);
+      }
+      return apptDay.isAtSameMomentAs(today) || apptDay.isAfter(today);
+    }).toList();
+
     if (upcoming.isEmpty) {
-      return const Center(
+      return Center(
         child: Text(
-          'No upcoming appointments',
-          style: TextStyle(color: AppColors.grey, fontSize: 16),
+          _todayOnly ? 'No appointments for today' : 'No upcoming appointments',
+          style: const TextStyle(color: AppColors.grey, fontSize: 16),
         ),
       );
     }
-
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-
     final todaysAppointments = <AppointmentModel>[];
     final tomorrowsAppointments = <AppointmentModel>[];
     final nextWeekAppointments = <AppointmentModel>[];
@@ -320,6 +359,38 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
           ),
         ],
       ],
+    );
+  }
+
+  Widget _buildMissedTab() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    
+    final missed = _appointments.where((a) {
+      if (a.status != 'SCHEDULED') return false;
+      final apptDateLocal = a.appointmentDate.toLocal();
+      final apptDay = DateTime(apptDateLocal.year, apptDateLocal.month, apptDateLocal.day);
+      return apptDay.isBefore(today);
+    }).toList();
+
+    missed.sort((a, b) => b.appointmentDate.compareTo(a.appointmentDate));
+
+    if (missed.isEmpty) {
+      return const Center(
+        child: Text(
+          'No missed appointments',
+          style: TextStyle(color: AppColors.grey, fontSize: 16),
+        ),
+      );
+    }
+
+    int indexCounter = 0;
+    return ListView.builder(
+      padding: const EdgeInsets.all(AppDimensions.paddingL),
+      itemCount: missed.length,
+      itemBuilder: (context, index) {
+        return _buildAppointmentCard(missed[index], indexCounter++);
+      },
     );
   }
 

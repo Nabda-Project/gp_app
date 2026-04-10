@@ -25,6 +25,7 @@ class RoleSelectionScreen extends StatefulWidget {
 class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
   String? selectedRole;
   bool _isLoading = false;
+  final TextEditingController _phoneController = TextEditingController();
 
   void _selectRole(String role) {
     setState(() {
@@ -38,6 +39,16 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
     final firebaseUser = FirebaseAuth.instance.currentUser;
     if (firebaseUser == null) {
       Navigator.pushReplacementNamed(context, '/auth');
+      return;
+    }
+
+    final phone = _phoneController.text.trim();
+    if (phone.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter your phone number')),
+        );
+      }
       return;
     }
 
@@ -58,7 +69,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
           fullName: fullName,
           email: email,
           password: generatedPassword,
-          phoneNumber: '',
+          phoneNumber: phone,
           role: backendRole,
         );
         final backendUser = await BackendAuthService.register(registerRequest);
@@ -101,6 +112,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
         backendId: backendId,
         fullName: fullName,
         email: email,
+        phoneNumber: phone,
         role: role,
       );
 
@@ -143,9 +155,10 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
       ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingL),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
             const SizedBox(height: AppDimensions.paddingM),
             FadeSlideTransition(
               delay: const Duration(milliseconds: 100),
@@ -160,8 +173,9 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
             ),
             const SizedBox(height: 50),
 
-            Expanded(
+            IntrinsicHeight(
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Expanded(
                     child: AnimatedListItem(
@@ -190,7 +204,34 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
               ),
             ),
 
-            const Spacer(),
+            const SizedBox(height: 20),
+
+            // Phone number field (shown only when a role is selected)
+            AnimatedOpacity(
+              opacity: selectedRole != null ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 300),
+              child: selectedRole == null
+                  ? const SizedBox.shrink()
+                  : TextField(
+                      controller: _phoneController,
+                      keyboardType: TextInputType.phone,
+                      decoration: InputDecoration(
+                        labelText: 'Phone Number',
+                        prefixIcon: const Icon(Icons.phone, color: AppColors.primaryBlue),
+                        filled: true,
+                        fillColor: AppColors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+            ),
+            const SizedBox(height: 20),
 
             // Only show continue button if a role is selected
             AnimatedOpacity(
@@ -205,6 +246,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
             const SizedBox(height: 50),
           ],
         ),
+      ),
       ),
     );
   }

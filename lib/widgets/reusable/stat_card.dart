@@ -6,6 +6,7 @@ class StatCard extends StatelessWidget {
   final String value;
   final String label;
   final Color color;
+  final VoidCallback? onTap;
 
   const StatCard({
     super.key,
@@ -13,11 +14,14 @@ class StatCard extends StatelessWidget {
     required this.value,
     required this.label,
     required this.color,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
@@ -97,6 +101,7 @@ class StatCard extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 }

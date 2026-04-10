@@ -49,8 +49,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(AppDimensions.paddingL),
-        child: Column(
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
             AnimatedListItem(
               index: 0,
               child: _buildSwitchTile(
@@ -112,7 +113,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
             ),
-            const Spacer(),
+            const SizedBox(height: 100),
             FadeSlideTransition(
               delay: const Duration(milliseconds: 300),
               child: CustomButton(
@@ -125,6 +126,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 20),
           ],
         ),
+      ),
       ),
     );
   }

@@ -20,6 +20,9 @@ import '../../widgets/animations/fade_slide_transition.dart';
 import '../../widgets/animations/animated_list_item.dart';
 import '../../widgets/reusable/custom_bottom_nav.dart';
 import '../../services/chat_service.dart';
+import '../../services/notification_api_service.dart';
+import '../../services/notification_service.dart';
+import '../../models/chat_message_model.dart';
 import 'doctor_chat_screen.dart';
 
 class PatientDashboardScreen extends StatefulWidget {
@@ -38,6 +41,9 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
   bool _loadingAppointment = true;
   final PageController _pageController = PageController();
   StreamSubscription<Map<String, dynamic>>? _systemEventSubscription;
+  StreamSubscription<ChatMessageModel>? _chatMessageSubscription;
+  int _unreadChatCount = 0;
+  int _unreadNotifCount = 0;
 
   @override
   void initState() {
@@ -48,6 +54,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
   @override
   void dispose() {
     _systemEventSubscription?.cancel();
+    _chatMessageSubscription?.cancel();
     _pageController.dispose();
     super.dispose();
   }
@@ -60,15 +67,60 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
 
     // Initialize the global ChatService singleton (connects WebSocket + starts presence)
     if (user?.backendId != null) {
-      ChatService.initialize(user!.backendId!).then((_) {
+      // Fetch initial unread notification count
+      _fetchUnreadNotifCount(user!.backendId!);
+
+      ChatService.initialize(user.backendId!).then((_) {
         // Listen for system events (e.g. doctor assignment/removal)
         _systemEventSubscription = ChatService.instance?.systemEvents.listen((event) {
           if (event['type'] == 'PATIENT_ASSIGNED' && mounted) {
             _fetchAssignedDoctor(user);
+            _fetchNextAppointment(user);
+            _fetchUnreadNotifCount(user.backendId!);
+            NotificationService.showHeadsUp(
+              title: 'Doctor Assigned',
+              message: 'A doctor has been assigned to you',
+            );
           } else if (event['type'] == 'PATIENT_REMOVED' && mounted) {
             setState(() {
               _assignedDoctor = null;
+              _nextAppointment = null;
             });
+            _fetchUnreadNotifCount(user.backendId!);
+          } else if (event['type'] == 'APPOINTMENT_SCHEDULED' && mounted) {
+            _fetchNextAppointment(user);
+            _fetchUnreadNotifCount(user.backendId!);
+            NotificationService.showHeadsUp(
+              title: 'New Appointment',
+              message: 'A new appointment has been scheduled',
+            );
+          } else if (event['type'] == 'APPOINTMENT_CONFIRMED' && mounted) {
+            _fetchNextAppointment(user);
+            _fetchUnreadNotifCount(user.backendId!);
+            NotificationService.showHeadsUp(
+              title: 'Appointment Confirmed',
+              message: 'Your appointment has been confirmed',
+            );
+          } else if ((event['type'] == 'APPOINTMENT_CANCELLED' ||
+                      event['type'] == 'APPOINTMENT_COMPLETED') && mounted) {
+            setState(() => _nextAppointment = null);
+            _fetchNextAppointment(user);
+            _fetchUnreadNotifCount(user.backendId!);
+          }
+        });
+
+        // Listen for new chat messages to update unread badge + play sound
+        _chatMessageSubscription = ChatService.instance?.messages.listen((msg) {
+          if (msg.senderId != user.backendId && mounted) {
+            // Only increment if we're NOT currently on the chat tab
+            if (_currentIndex != 1 || !_showChatTab) {
+              setState(() => _unreadChatCount++);
+              NotificationService.showHeadsUp(
+                title: 'New Message',
+                message: msg.content,
+              );
+            }
+            _fetchUnreadNotifCount(user.backendId!);
           }
         });
       });
@@ -87,6 +139,8 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     }
     try {
       final appt = await AppointmentApiService.getNextAppointment(user!.backendId!);
+      // Auto mark appointment notifications as read since user is looking at their dashboard
+      NotificationApiService.markAppointmentsAsRead(user.backendId!);
       if (mounted) {
         setState(() {
           _nextAppointment = appt;
@@ -118,16 +172,32 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     }
   }
 
+  Future<void> _fetchUnreadNotifCount(int userId) async {
+    try {
+      final count = await NotificationApiService.getUnreadCount(userId);
+      if (mounted) setState(() => _unreadNotifCount = count);
+    } catch (e) {
+      log('Could not load unread notification count: $e', name: 'PatientDashboard');
+    }
+  }
+
+  /// Whether the chat tab should be visible (only when a doctor is assigned).
+  bool get _showChatTab => _assignedDoctor != null;
+
   @override
   Widget build(BuildContext context) {
     final List<Widget> pages = [
       _buildDashboardContent(),
-      DoctorChatScreen(
-        doctorName: _assignedDoctor?.fullName,
-        doctorId: _assignedDoctor?.id,
-      ),
+      if (_showChatTab)
+        DoctorChatScreen(
+          doctorName: _assignedDoctor?.fullName,
+          doctorId: _assignedDoctor?.id,
+        ),
       const ProfileScreen(),
     ];
+
+    // Determine the chat-tab-aware page index for the FAB visibility
+    final bool isChatPage = _showChatTab && _currentIndex == 1;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -137,12 +207,22 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
           setState(() {
             _currentIndex = index;
           });
+          // Clear badge when entering the chat tab and map it to DB via API
+          if (_showChatTab && index == 1 && _unreadChatCount > 0) {
+            setState(() => _unreadChatCount = 0);
+            if (_currentUser?.backendId != null && _assignedDoctor?.id != null) {
+              NotificationApiService.markChatAsRead(
+                _currentUser!.backendId!,
+                _assignedDoctor!.id,
+              );
+            }
+          }
         },
         physics: const BouncingScrollPhysics(),
         children: pages,
       ),
       floatingActionButton:
-          _currentIndex == 1
+          isChatPage
               ? null
               : FloatingActionButton(
                 onPressed: () {
@@ -172,11 +252,13 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
             activeIcon: Icons.dashboard,
             label: AppLocalizations.of(context)!.get('dashboard'),
           ),
-          CustomNavItem(
-            icon: Icons.message_outlined,
-            activeIcon: Icons.message,
-            label: AppLocalizations.of(context)!.get('chat'),
-          ),
+          if (_showChatTab)
+            CustomNavItem(
+              icon: Icons.message_outlined,
+              activeIcon: Icons.message,
+              label: AppLocalizations.of(context)!.get('chat'),
+              badgeCount: _unreadChatCount,
+            ),
           CustomNavItem(
             icon: Icons.person_outline,
             activeIcon: Icons.person,
@@ -195,7 +277,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
           slivers: [
             // ── App Bar ──────────────────────────────────────────────────────
             SliverAppBar(
-              expandedHeight: 140,
+              expandedHeight: 180,
               floating: false,
               pinned: true,
               backgroundColor: AppColors.white,
@@ -305,14 +387,35 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                                     color: Colors.white.withValues(alpha: 0.2),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  child: IconButton(
-                                    icon: const Icon(
-                                      Icons.notifications_outlined,
-                                      color: Colors.white,
-                                    ),
-                                    onPressed: () {
-                                      Navigator.pushNamed(context, '/notifications');
-                                    },
+                                  child: Stack(
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.notifications_outlined,
+                                          color: Colors.white,
+                                        ),
+                                        onPressed: () async {
+                                          await Navigator.pushNamed(context, '/notifications');
+                                          if (_currentUser?.backendId != null) {
+                                            _fetchUnreadNotifCount(_currentUser!.backendId!);
+                                          }
+                                        },
+                                      ),
+                                      if (_unreadNotifCount > 0)
+                                        Positioned(
+                                          right: 8,
+                                          top: 8,
+                                          child: Container(
+                                            width: 12,
+                                            height: 12,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              color: Colors.red,
+                                              border: Border.all(color: Colors.white, width: 1.5),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                 ),
                               ],
@@ -401,20 +504,19 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                           index: 3,
                           child: VitalCard(
                             label: AppLocalizations.of(context)!.get('nextFollowUp'),
-                            value: "N/A",
-                            unit: "",
+                            value: _loadingAppointment
+                                ? '...'
+                                : _nextAppointment != null
+                                    ? DateFormat('MMM d').format(_nextAppointment!.appointmentDate.toLocal())
+                                    : 'N/A',
+                            unit: _nextAppointment != null
+                                ? DateFormat('h:mm a').format(_nextAppointment!.appointmentDate.toLocal())
+                                : '',
                             icon: Icons.calendar_today,
                             color: AppColors.primaryBlue,
                           ),
                         ),
                       ],
-                    ),
-                    const SizedBox(height: AppDimensions.paddingL),
-
-                    // Follow-up Card
-                    FadeSlideTransition(
-                      delay: const Duration(milliseconds: 500),
-                      child: _buildFollowUpCard(),
                     ),
                   ],
                 ),
@@ -590,74 +692,5 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     );
   }
 
-  Widget _buildFollowUpCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppDimensions.paddingL),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(AppDimensions.radiusM),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                AppLocalizations.of(context)!.get('nextFollowUp'),
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              Row(
-                children: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/follow_ups');
-                    },
-                    child: Text(AppLocalizations.of(context)!.get('seeAll')),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: AppDimensions.paddingS),
-          if (_loadingAppointment)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16.0),
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (_nextAppointment != null)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const CircleAvatar(
-                backgroundColor: AppColors.lightGrey,
-                child: Icon(Icons.calendar_today, color: AppColors.primaryBlue),
-              ),
-              title: Text('Dr. ${_nextAppointment!.doctorName}'),
-              subtitle: Text(
-                '${DateFormat('EEE, MMM d, yyyy').format(_nextAppointment!.appointmentDate.toLocal())} at ${DateFormat('h:mm a').format(_nextAppointment!.appointmentDate.toLocal())}',
-              ),
-            )
-          else
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const CircleAvatar(
-                backgroundColor: AppColors.lightGrey,
-                child: Icon(Icons.event_available, color: AppColors.grey),
-              ),
-              title: const Text('No upcoming appointments', style: TextStyle(color: AppColors.grey)),
-            ),
-        ],
-      ),
-    );
-  }
+  // Follow-up card removed — appointment info is now displayed in the vitals grid.
 }
