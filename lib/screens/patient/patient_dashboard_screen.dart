@@ -22,6 +22,7 @@ import '../../widgets/reusable/custom_bottom_nav.dart';
 import '../../services/chat_service.dart';
 import '../../services/notification_api_service.dart';
 import '../../services/notification_service.dart';
+import '../../services/push_notification_service.dart';
 import '../../models/chat_message_model.dart';
 import 'doctor_chat_screen.dart';
 
@@ -77,9 +78,9 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
             _fetchAssignedDoctor(user);
             _fetchNextAppointment(user);
             _fetchUnreadNotifCount(user.backendId!);
-            NotificationService.showHeadsUp(
+            PushNotificationService.showHeadsUpNotification(
               title: 'Doctor Assigned',
-              message: 'A doctor has been assigned to you',
+              body: 'A doctor has been assigned to you',
             );
           } else if (event['type'] == 'PATIENT_REMOVED' && mounted) {
             setState(() {
@@ -90,16 +91,16 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
           } else if (event['type'] == 'APPOINTMENT_SCHEDULED' && mounted) {
             _fetchNextAppointment(user);
             _fetchUnreadNotifCount(user.backendId!);
-            NotificationService.showHeadsUp(
+            PushNotificationService.showHeadsUpNotification(
               title: 'New Appointment',
-              message: 'A new appointment has been scheduled',
+              body: 'A new appointment has been scheduled',
             );
           } else if (event['type'] == 'APPOINTMENT_CONFIRMED' && mounted) {
             _fetchNextAppointment(user);
             _fetchUnreadNotifCount(user.backendId!);
-            NotificationService.showHeadsUp(
+            PushNotificationService.showHeadsUpNotification(
               title: 'Appointment Confirmed',
-              message: 'Your appointment has been confirmed',
+              body: 'Your appointment has been confirmed',
             );
           } else if ((event['type'] == 'APPOINTMENT_CANCELLED' ||
                       event['type'] == 'APPOINTMENT_COMPLETED') && mounted) {
@@ -115,9 +116,9 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
             // Only increment if we're NOT currently on the chat tab
             if (_currentIndex != 1 || !_showChatTab) {
               setState(() => _unreadChatCount++);
-              NotificationService.showHeadsUp(
-                title: 'New Message',
-                message: msg.content,
+              PushNotificationService.showHeadsUpNotification(
+                title: msg.senderName ?? 'New Message',
+                body: msg.content,
               );
             }
             _fetchUnreadNotifCount(user.backendId!);

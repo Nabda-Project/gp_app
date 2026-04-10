@@ -4,8 +4,12 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Required for heads-up notifications that appear over other apps (Android 14+) -->
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
-    <!-- Required for notification vibration -->
+    <!-- Required for Alarms & Reminders permission -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <!-- Required for notification vibration and waking up screen -->
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <application
         android:label="gp_app"
@@ -15,7 +19,7 @@
         <!-- FCM default notification channel -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="healthsync_notifications" />
+            android:value="healthsync_alerts_v4" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

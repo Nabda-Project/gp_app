@@ -13,6 +13,7 @@ import '../../models/patient_response_model.dart';
 import '../../models/chat_contact_model.dart';
 import '../../services/notification_api_service.dart';
 import '../../services/notification_service.dart';
+import '../../services/push_notification_service.dart';
 import '../../models/chat_message_model.dart';
 import '../../services/appointment_api_service.dart';
 import '../../core/api/api_exceptions.dart';
@@ -98,9 +99,9 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
           if (mounted) _loadChatsData();
           if (msg.senderId != user.backendId && mounted) {
             _fetchUnreadNotifCount(user.backendId!);
-            NotificationService.showHeadsUp(
-              title: 'New Message',
-              message: msg.content,
+            PushNotificationService.showHeadsUpNotification(
+              title: msg.senderName ?? 'New Message',
+              body: msg.content,
             );
           }
         });
@@ -119,9 +120,9 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
             _fetchAppointments(user.backendId!);
             _fetchUnreadNotifCount(user.backendId!);
             if (event['type'] == 'APPOINTMENT_SCHEDULED') {
-              NotificationService.showHeadsUp(
+              PushNotificationService.showHeadsUpNotification(
                 title: 'New Appointment',
-                message: 'An appointment has been scheduled',
+                body: 'An appointment has been scheduled',
               );
             }
           }

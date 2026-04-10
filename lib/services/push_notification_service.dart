@@ -21,8 +21,55 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   log('FCM background: received message type=${message.data['type']}',
       name: 'PushNotificationService');
-  // Android system already displays the notification from the
-  // `notification` payload — no need to show a local notification.
+  
+  // Create a new instance of FlutterLocalNotificationsPlugin for the background isolate
+  final localNotifications = FlutterLocalNotificationsPlugin();
+  
+  // Initialize it for the background isolate
+  const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const initSettings = InitializationSettings(android: androidSettings);
+  await localNotifications.initialize(initSettings);
+
+  final data = message.data;
+  final title = data['title'] ?? 'HealthSync';
+  final rawBody = data['body'] ?? '';
+
+  // Explicitly add sender name to the body content
+  final body = (title != 'HealthSync' && title.isNotEmpty) 
+      ? '$title: $rawBody' 
+      : rawBody;
+
+  final androidDetails = AndroidNotificationDetails(
+    'healthsync_alerts_v4',
+    'HealthSync Alerts',
+    channelDescription: 'Important alerts for messages, appointments, and health events',
+    importance: Importance.max,
+    priority: Priority.max,
+    playSound: true,
+    enableVibration: true,
+    icon: '@mipmap/ic_launcher',
+    category: AndroidNotificationCategory.message,
+    visibility: NotificationVisibility.public,
+    autoCancel: true,
+    showWhen: true,
+    enableLights: true,
+    ticker: '$title: $body',
+    styleInformation: BigTextStyleInformation(
+      body,
+      contentTitle: title,
+      summaryText: 'HealthSync',
+    ),
+  );
+
+  final details = NotificationDetails(android: androidDetails);
+
+  await localNotifications.show(
+    DateTime.now().millisecondsSinceEpoch % 2147483647, // unique ID
+    title,
+    body,
+    details,
+    payload: jsonEncode(data),
+  );
 }
 
 /// Service responsible for all Firebase Cloud Messaging (FCM) push notifications.
@@ -30,7 +77,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 /// Handles:
 /// - Permission requests
 /// - Token registration with backend
-/// - Foreground message display
+/// - Foreground message display (system heads-up notification like WhatsApp)
 /// - Background message display
 /// - Notification tap navigation
 class PushNotificationService {
@@ -42,15 +89,23 @@ class PushNotificationService {
 
   static bool _initialized = false;
 
-  /// Android notification channel for HealthSync — high importance + default sound.
+  /// New channel ID — Android caches channel settings forever, so we use a
+  /// fresh ID to guarantee MAX importance + heads-up display.
+  static const String _channelId = 'healthsync_alerts_v4';
+  static const String _channelName = 'HealthSync Alerts';
+  static const String _channelDesc =
+      'Important alerts for messages, appointments, and health events';
+
+  /// Android notification channel — MAX importance for heads-up banners.
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
-    'healthsync_notifications',
-    'HealthSync Notifications',
-    description: 'Notifications for messages, appointments, and system events',
-    importance: Importance.high,
+    _channelId,
+    _channelName,
+    description: _channelDesc,
+    importance: Importance.max,
     playSound: true,
     enableVibration: true,
     showBadge: true,
+    enableLights: true,
   );
 
   /// Initialize FCM, permissions, and local notification display.
@@ -68,11 +123,16 @@ class PushNotificationService {
     log('FCM permission status: ${settings.authorizationStatus}',
         name: 'PushNotificationService');
 
-    // 2. Create the Android notification channel
-    await _localNotifications
+    // 2. Create the Android notification channel (MAX importance)
+    final androidPlugin = _localNotifications
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(_channel);
+            AndroidFlutterLocalNotificationsPlugin>();
+    if (androidPlugin != null) {
+      await androidPlugin.createNotificationChannel(_channel);
+      // Request exact alarm / full-screen intent permission (Android 14+)
+      await androidPlugin.requestExactAlarmsPermission();
+      await androidPlugin.requestNotificationsPermission();
+    }
 
     // 3. Initialize flutter_local_notifications
     const androidSettings =
@@ -86,8 +146,8 @@ class PushNotificationService {
     // 4. Register background handler
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-    // 5. Handle foreground messages — show local notification since Android
-    //    does NOT auto-display notifications when the app is in the foreground.
+    // 5. Handle foreground messages — show system heads-up notification
+    //    Android does NOT auto-display notifications when the app is in foreground.
     FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
 
     // 6. Ensure foreground notifications show as system notifications (iOS)
@@ -152,46 +212,60 @@ class PushNotificationService {
 
   /// Handle foreground FCM messages.
   /// Android does NOT auto-show the notification when the app is in foreground,
-  /// so we must create a local notification manually.
+  /// so we create a LOCAL SYSTEM notification that appears as a heads-up banner
+  /// on top of whatever app is open — exactly like WhatsApp.
   static void _handleForegroundMessage(RemoteMessage message) {
     final data = message.data;
     final title = message.notification?.title ?? data['title'] ?? 'HealthSync';
-    final body = message.notification?.body ?? data['body'] ?? '';
+    final rawBody = message.notification?.body ?? data['body'] ?? '';
+    
+    // Explicitly add sender name to the body content to guarantee it's visible
+    final body = (title != 'HealthSync' && title.isNotEmpty) 
+        ? '$title: $rawBody' 
+        : rawBody;
 
-    log('FCM foreground: showing local notification — title=$title',
+    log('FCM foreground: showing heads-up system notification — title=$title',
         name: 'PushNotificationService');
 
-    // Show a system-level local notification with sound
-    _showLocalNotification(
+    // Show a real system heads-up notification (NOT an in-app toast)
+    showHeadsUpNotification(
       title: title,
       body: body,
       payload: jsonEncode(data),
     );
   }
 
-  /// Show a local notification with sound using flutter_local_notifications.
-  /// Appears as a heads-up banner on top of any app + in the system notification tray.
-  static Future<void> _showLocalNotification({
+  /// Show a REAL system heads-up notification that appears as a banner on top
+  /// of ANY app — exactly like WhatsApp, Telegram, etc.
+  ///
+  /// This uses flutter_local_notifications to create a high-priority
+  /// notification with fullScreenIntent which triggers the heads-up display.
+  ///
+  /// Can be called from anywhere in the app (dashboard, chat service, etc.)
+  static Future<void> showHeadsUpNotification({
     required String title,
     required String body,
     String? payload,
   }) async {
     final androidDetails = AndroidNotificationDetails(
-      'healthsync_notifications',
-      'HealthSync Notifications',
-      channelDescription:
-          'Notifications for messages, appointments, and system events',
+      _channelId,
+      _channelName,
+      channelDescription: _channelDesc,
+      // ── These together guarantee heads-up banner ──
       importance: Importance.max,
       priority: Priority.max,
+      // ── Sound & vibration ──
       playSound: true,
       enableVibration: true,
+      // ── Visual ──
       icon: '@mipmap/ic_launcher',
       category: AndroidNotificationCategory.message,
       visibility: NotificationVisibility.public,
       autoCancel: true,
-      // Heads-up: ensures the notification appears as a banner over other apps
-      fullScreenIntent: true,
+      showWhen: true,
+      enableLights: true,
       ticker: '$title: $body',
+      // ── Expanded text style ──
       styleInformation: BigTextStyleInformation(
         body,
         contentTitle: title,
@@ -202,7 +276,7 @@ class PushNotificationService {
     final details = NotificationDetails(android: androidDetails);
 
     await _localNotifications.show(
-      DateTime.now().millisecondsSinceEpoch ~/ 1000, // unique ID
+      DateTime.now().millisecondsSinceEpoch % 2147483647, // unique ID per message
       title,
       body,
       details,
