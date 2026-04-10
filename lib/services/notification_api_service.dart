@@ -142,4 +142,15 @@ class NotificationApiService {
       log('Failed to delete chat notifications: $e', name: 'NotificationApiService');
     }
   }
+
+  /// Delete ALL notifications for a user.
+  static Future<void> deleteAllNotifications(int userId) async {
+    try {
+      await DioClient.instance.delete(
+        ApiEndpoints.notificationDeleteAll(userId),
+      );
+    } catch (e) {
+      log('Failed to delete all notifications: $e', name: 'NotificationApiService');
+    }
+  }
 }

@@ -54,4 +54,5 @@ class ApiEndpoints {
   static String notificationsMarkAppointmentsRead(int userId) => '/notifications/$userId/read-appointments';
   static String notificationDelete(int notificationId, int userId) => '/notifications/$notificationId/user/$userId';
   static String notificationDeleteChatNotifications(int userId, int senderId) => '/notifications/$userId/chat/$senderId';
+  static String notificationDeleteAll(int userId) => '/notifications/$userId/all';
 }
