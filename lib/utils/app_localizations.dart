@@ -194,6 +194,12 @@ class AppLocalizations {
       'cancelled': 'Cancelled',
       'scheduled': 'Scheduled',
       'completed': 'Completed',
+      'serverDownTitle': 'Our servers are taking a short break',
+      'serverDownDesc': 'We\'re fixing the issue. Auto-refreshing...',
+      'reconnecting': 'Reconnecting...',
+      'reconnectingSuccess': 'Reconnected successfully!',
+      'noInternetTitle': 'No Internet Connection',
+      'noInternetDesc': 'Please check your network settings and try again.',
     },
     'ar': {
       'appName': 'هيلث سينك',
@@ -370,6 +376,12 @@ class AppLocalizations {
       'cancelled': 'ملغي',
       'scheduled': 'مجدول',
       'completed': 'مكتمل',
+      'serverDownTitle': 'خوادمنا في فترة راحة قصيرة',
+      'serverDownDesc': 'نحن نعمل على إصلاح المشكلة. جاري التحديث التلقائي...',
+      'reconnecting': 'جاري إعادة الاتصال...',
+      'reconnectingSuccess': 'تم إعادة الاتصال بنجاح!',
+      'noInternetTitle': 'لا يوجد اتصال بالإنترنت',
+      'noInternetDesc': 'يرجى التحقق من إعدادات الشبكة والمحاولة مرة أخرى.',
     },
   };
 

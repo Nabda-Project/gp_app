@@ -28,7 +28,13 @@ import '../../widgets/animations/fade_slide_transition.dart';
 import '../../widgets/animations/animated_list_item.dart';
 import '../../widgets/reusable/custom_bottom_nav.dart';
 import '../../widgets/reusable/assign_patient_sheet.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import '../../widgets/reusable/dashboard_skeleton.dart';
+import '../../widgets/reusable/server_down_view.dart';
+import '../../widgets/reusable/no_internet_view.dart';
+import '../../services/api_service.dart';
 
+enum AppNetworkState { checking, normal, noInternet, serverDown }
 class DoctorDashboardScreen extends StatefulWidget {
   const DoctorDashboardScreen({super.key});
 
@@ -57,11 +63,14 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
   bool _isLoadingChats = true;
   StreamSubscription<ChatMessageModel>? _chatMessageSubscription;
   StreamSubscription<Map<String, dynamic>>? _systemEventSubscription;
+  StreamSubscription<dynamic>? _connectivitySubscription;
+  AppNetworkState _networkState = AppNetworkState.checking;
   int _unreadNotifCount = 0;
 
   @override
   void initState() {
     super.initState();
+    _initConnectivity();
     _loadUser();
     _searchController.addListener(_onSearchChanged);
   }
@@ -73,6 +82,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
     _pageController.dispose();
     _chatMessageSubscription?.cancel();
     _systemEventSubscription?.cancel();
+    _connectivitySubscription?.cancel();
     super.dispose();
   }
 
@@ -82,12 +92,72 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
     });
   }
 
-  void _loadUser() {
+  void _initConnectivity() async {
+    final initialResult = await Connectivity().checkConnectivity();
+    _updateNetworkState(initialResult);
+
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen(_updateNetworkState);
+  }
+
+  void _updateNetworkState(dynamic result) {
+    bool isDisconnected = false;
+    if (result is List) {
+      if (result.isEmpty || result.contains(ConnectivityResult.none)) {
+         if (!result.contains(ConnectivityResult.wifi) && 
+             !result.contains(ConnectivityResult.mobile) && 
+             !result.contains(ConnectivityResult.ethernet)) {
+           isDisconnected = true;
+         }
+      }
+    } else {
+      isDisconnected = result == ConnectivityResult.none;
+    }
+        
+    log('Network state updated: disconnected=$isDisconnected, raw_result=$result', name: 'DoctorDashboard');
+
+    if (mounted) {
+      setState(() {
+        if (isDisconnected) {
+          _networkState = AppNetworkState.noInternet;
+        } else {
+          if (_networkState == AppNetworkState.noInternet) {
+            _networkState = AppNetworkState.checking;
+            _loadUser();
+          }
+        }
+      });
+    }
+  }
+
+  void _handleApiException(dynamic e) {
+    if (e is ServerException || e is NetworkException) {
+      if (mounted && _networkState != AppNetworkState.noInternet) {
+        setState(() => _networkState = AppNetworkState.serverDown);
+      }
+    }
+  }
+
+  void _loadUser() async {
     final user = StorageService.getUser();
     setState(() {
       _currentUser = user;
     });
     if (user?.backendId != null) {
+      if (_networkState != AppNetworkState.noInternet) {
+        try {
+          final check = await ApiService.testConnection();
+          if (check.contains('Error') || check.contains('Exception')) {
+             if (mounted) setState(() => _networkState = AppNetworkState.serverDown);
+             return;
+          } else {
+             if (mounted) setState(() => _networkState = AppNetworkState.normal);
+          }
+        } catch (_) {
+           if (mounted) setState(() => _networkState = AppNetworkState.serverDown);
+           return;
+        }
+      }
+
       // Fetch initial unread notification count
       _fetchUnreadNotifCount(user!.backendId!);
 
@@ -155,6 +225,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
       }
     } on NetworkException catch (e) {
       log('Network error fetching patients: ${e.message}', name: 'DoctorDashboard');
+      _handleApiException(e);
       if (mounted) {
         setState(() {
           _isLoadingPatients = false;
@@ -163,6 +234,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
       }
     } on ServerException catch (e) {
       log('Server error fetching patients: ${e.message}', name: 'DoctorDashboard');
+      _handleApiException(e);
       if (mounted) {
         setState(() {
           _isLoadingPatients = false;
@@ -171,13 +243,15 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
       }
     } on ApiException catch (e) {
       log('Failed to fetch patients: ${e.message}', name: 'DoctorDashboard');
+      _handleApiException(e);
       if (mounted) {
         setState(() {
           _isLoadingPatients = false;
           _patientsError = e.message;
         });
       }
-    } on DioException catch (_) {
+    } on DioException catch (e) {
+      _handleApiException(e);
       if (mounted) {
         setState(() {
           _isLoadingPatients = false;
@@ -186,6 +260,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
       }
     } catch (e) {
       log('Failed to fetch patients: $e', name: 'DoctorDashboard');
+      _handleApiException(e);
       if (mounted) {
         setState(() {
           _isLoadingPatients = false;
@@ -220,6 +295,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
       }
     } catch (e) {
       log('Failed to fetch appointments for count: $e', name: 'DoctorDashboard');
+      _handleApiException(e);
     }
   }
 
@@ -432,6 +508,30 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_networkState == AppNetworkState.checking) {
+      return const Scaffold(body: DashboardSkeleton());
+    } else if (_networkState == AppNetworkState.noInternet) {
+      return const NoInternetView();
+    } else if (_networkState == AppNetworkState.serverDown) {
+      return Scaffold(
+        body: ServerDownView(
+          onRefresh: () async {
+            try {
+              final result = await ApiService.testConnection();
+              if (result.contains('Error') || result.contains('Exception')) return false;
+              if (mounted) {
+                setState(() => _networkState = AppNetworkState.checking);
+                _loadUser();
+              }
+              return true;
+            } catch (_) {
+              return false;
+            }
+          },
+        ),
+      );
+    }
+
     final List<Widget> pages = [
       _buildDashboardContent(),
       _buildChatsContent(),
