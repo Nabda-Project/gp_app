@@ -32,6 +32,8 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../widgets/reusable/dashboard_skeleton.dart';
 import '../../widgets/reusable/server_down_view.dart';
 import '../../widgets/reusable/no_internet_view.dart';
+import '../../widgets/reusable/list_skeleton.dart';
+import '../../widgets/reusable/empty_state_view.dart';
 import '../../services/api_service.dart';
 
 enum AppNetworkState { checking, normal, noInternet, serverDown }
@@ -1126,28 +1128,17 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
       ),
       body: DecoratedBackground(
         child: _isLoadingChats
-            ? const Center(
-                child: CircularProgressIndicator(
-                    color: AppColors.primaryBlue))
+            ? const ListSkeleton(itemCount: 8, hasAvatar: true, compact: false)
             : _chatContacts.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.chat_bubble_outline,
-                            size: 64,
-                            color: AppColors.grey.withValues(alpha: 0.4)),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No conversations yet.\nStart chatting from the Patients tab!',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: AppColors.grey.withValues(alpha: 0.7),
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
+                ? EmptyStateView(
+                    icon: Icons.chat_bubble_outline_rounded,
+                    title: 'No conversations yet',
+                    description: 'Start chatting from the Patients tab!',
+                    actionText: 'Refresh',
+                    onAction: () async {
+                      setState(() => _isLoadingChats = true);
+                      await _loadChatsData();
+                    },
                   )
                 : RefreshIndicator(
                     onRefresh: () async {
@@ -1455,52 +1446,30 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
             // Patient List
             Expanded(
               child: _isLoadingPatients
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const ListSkeleton(itemCount: 6, hasAvatar: true, compact: false)
                   : _patientsError != null
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.error_outline, size: 64, color: AppColors.grey),
-                              const SizedBox(height: 16),
-                              Text(
-                                _patientsError!,
-                                style: const TextStyle(color: AppColors.grey, fontSize: 16),
-                              ),
-                              const SizedBox(height: 16),
-                              TextButton(
-                                onPressed: () {
-                                  if (_currentUser?.backendId != null) {
-                                    _fetchPatients(_currentUser!.backendId!);
-                                  }
-                                },
-                                child: const Text('Retry'),
-                              ),
-                            ],
-                          ),
+                      ? EmptyStateView(
+                          icon: Icons.error_outline_rounded,
+                          title: 'Failed to load patients',
+                          description: _patientsError!,
+                          actionText: 'Retry',
+                          onAction: () {
+                            if (_currentUser?.backendId != null) {
+                              _fetchPatients(_currentUser!.backendId!);
+                            }
+                          },
                         )
                       : _filteredPatients.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.search_off,
-                                    size: 64,
-                                    color: AppColors.primaryBlue.withValues(alpha: 0.1),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    _searchQuery.isNotEmpty
-                                        ? 'No patients found'
-                                        : 'No patients assigned yet.',
-                                    style: const TextStyle(
-                                      color: AppColors.grey,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                          ? EmptyStateView(
+                              icon: _searchQuery.isNotEmpty ? Icons.search_off_rounded : Icons.group_off_rounded,
+                              title: _searchQuery.isNotEmpty
+                                  ? 'No patients found'
+                                  : 'No patients assigned yet.',
+                              description: _searchQuery.isNotEmpty
+                                  ? 'Try modifying your search query.'
+                                  : 'Assign a new patient to start monitoring them.',
+                              actionText: _searchQuery.isNotEmpty ? 'Clear Search' : null,
+                              onAction: _searchQuery.isNotEmpty ? () => _searchController.clear() : null,
                             )
                           : ListView.builder(
                               padding: const EdgeInsets.symmetric(

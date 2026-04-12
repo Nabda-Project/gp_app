@@ -8,6 +8,8 @@ import '../../services/storage_service.dart';
 import '../../widgets/reusable/decorated_background.dart';
 import '../../widgets/animations/fade_slide_transition.dart';
 import '../../widgets/animations/animated_list_item.dart';
+import '../../widgets/reusable/list_skeleton.dart';
+import '../../widgets/reusable/empty_state_view.dart';
 import 'package:intl/intl.dart';
 
 class DoctorAppointmentsScreen extends StatefulWidget {
@@ -190,30 +192,15 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
               Expanded(
                 child:
                     _isLoading
-                        ? const Center(child: CircularProgressIndicator())
+                        ? const ListSkeleton(itemCount: 4, hasAvatar: false, compact: false)
                         : _errorMessage != null
-                        ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                _errorMessage!,
-                                style: const TextStyle(color: Colors.red),
-                              ),
-                              const SizedBox(height: 16),
-                              ElevatedButton(
-                                onPressed: _fetchAppointments,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primaryBlue,
-                                ),
-                                child: const Text(
-                                  'Retry',
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
+                        ? EmptyStateView(
+                            icon: Icons.error_outline_rounded,
+                            title: 'Error loading',
+                            description: _errorMessage!,
+                            actionText: 'Retry',
+                            onAction: _fetchAppointments,
+                          )
                         : TabBarView(
                           children: [
                             _buildUpcomingTab(),
@@ -237,11 +224,10 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
     filtered.sort((a, b) => b.appointmentDate.compareTo(a.appointmentDate));
 
     if (filtered.isEmpty) {
-      return Center(
-        child: Text(
-          'No ${status.toLowerCase()} appointments',
-          style: const TextStyle(color: AppColors.grey, fontSize: 16),
-        ),
+      return EmptyStateView(
+        icon: Icons.event_busy_rounded,
+        title: 'No ${status.toLowerCase()} appointments',
+        description: 'There are no $status appointments to show.',
       );
     }
 
@@ -274,11 +260,10 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
     }).toList();
 
     if (upcoming.isEmpty) {
-      return Center(
-        child: Text(
-          _todayOnly ? 'No appointments for today' : 'No upcoming appointments',
-          style: const TextStyle(color: AppColors.grey, fontSize: 16),
-        ),
+      return EmptyStateView(
+        icon: Icons.event_available_rounded,
+        title: _todayOnly ? 'No appointments today' : 'No upcoming appointments',
+        description: 'You have a clear schedule!',
       );
     }
     final todaysAppointments = <AppointmentModel>[];
@@ -376,11 +361,10 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
     missed.sort((a, b) => b.appointmentDate.compareTo(a.appointmentDate));
 
     if (missed.isEmpty) {
-      return const Center(
-        child: Text(
-          'No missed appointments',
-          style: TextStyle(color: AppColors.grey, fontSize: 16),
-        ),
+      return const EmptyStateView(
+        icon: Icons.event_available_rounded,
+        title: 'No missed appointments',
+        description: 'Great job! All appointments were attended.',
       );
     }
 

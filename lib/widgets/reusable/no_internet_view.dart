@@ -50,7 +50,7 @@ class _NoInternetViewState extends State<NoInternetView> with SingleTickerProvid
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    Colors.orangeAccent.withValues(alpha: 0.1),
+                    AppColors.primaryBlue.withValues(alpha: 0.1),
                     Colors.transparent,
                   ],
                 ),
@@ -71,7 +71,7 @@ class _NoInternetViewState extends State<NoInternetView> with SingleTickerProvid
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.orangeAccent.withValues(alpha: 0.2),
+                        color: AppColors.primaryBlue.withValues(alpha: 0.2),
                         blurRadius: 30,
                         spreadRadius: 10,
                       ),
@@ -80,7 +80,7 @@ class _NoInternetViewState extends State<NoInternetView> with SingleTickerProvid
                   child: const Icon(
                     Icons.wifi_off_rounded,
                     size: 80,
-                    color: Colors.orangeAccent,
+                    color: AppColors.primaryBlue,
                   ),
                 ),
               ),
@@ -126,14 +126,14 @@ class _NoInternetViewState extends State<NoInternetView> with SingleTickerProvid
                     height: 16,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.orangeAccent),
+                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryBlue),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Text(
                     AppLocalizations.of(context)!.get('reconnecting'),
                     style: const TextStyle(
-                      color: Colors.orangeAccent,
+                      color: AppColors.primaryBlue,
                       fontWeight: FontWeight.w600,
                     ),
                   ),

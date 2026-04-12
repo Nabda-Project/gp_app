@@ -5,6 +5,8 @@ import '../../utils/constants.dart';
 import '../../utils/app_localizations.dart';
 import '../../widgets/reusable/decorated_background.dart';
 import '../../widgets/animations/animated_list_item.dart';
+import '../../widgets/reusable/list_skeleton.dart';
+import '../../widgets/reusable/empty_state_view.dart';
 import '../../services/notification_api_service.dart';
 import '../../services/storage_service.dart';
 
@@ -326,30 +328,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       ),
       body: DecoratedBackground(
         child: _isLoading
-            ? const Center(
-                child:
-                    CircularProgressIndicator(color: AppColors.primaryBlue))
+            ? const ListSkeleton(itemCount: 8, hasAvatar: false, compact: true)
             : _notifications.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.notifications_off_outlined,
-                          size: 64,
-                          color: AppColors.grey.withValues(alpha: 0.4),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          AppLocalizations.of(context)!
-                              .get('noNotifications'),
-                          style: TextStyle(
-                            color: AppColors.grey.withValues(alpha: 0.7),
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
+                ? EmptyStateView(
+                    icon: Icons.notifications_off_rounded,
+                    title: AppLocalizations.of(context)!.get('noNotifications'),
+                    description: 'When you receive alerts or messages, they will appear here.',
+                    actionText: 'Refresh',
+                    onAction: () => _fetchNotifications(refresh: true),
                   )
                 : RefreshIndicator(
                     onRefresh: () => _fetchNotifications(refresh: true),
