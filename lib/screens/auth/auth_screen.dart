@@ -12,7 +12,6 @@ import '../../utils/app_localizations.dart';
 import '../../widgets/animations/fade_slide_transition.dart';
 import '../../core/api/api_exceptions.dart';
 
-
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
 
@@ -36,6 +35,10 @@ class _AuthScreenState extends State<AuthScreen>
   final _registerEmailController = TextEditingController();
   final _registerLicenseController = TextEditingController();
   final _registerPhoneController = TextEditingController();
+  final _registerHeightController = TextEditingController();
+  final _registerWeightController = TextEditingController();
+  DateTime? _registerDateOfBirth;
+  String? _registerGender;
 
   @override
   void initState() {
@@ -54,6 +57,8 @@ class _AuthScreenState extends State<AuthScreen>
     _registerEmailController.dispose();
     _registerLicenseController.dispose();
     _registerPhoneController.dispose();
+    _registerHeightController.dispose();
+    _registerWeightController.dispose();
     super.dispose();
   }
 
@@ -70,7 +75,6 @@ class _AuthScreenState extends State<AuthScreen>
     if (!mounted) return;
     NotificationService.showSuccess(title: 'Success', message: message);
   }
-
 
   void _navigateToDashboard(String role) {
     if (role == 'Doctor') {
@@ -109,6 +113,21 @@ class _AuthScreenState extends State<AuthScreen>
   Future<void> _handleEmailRegister() async {
     if (!_registerFormKey.currentState!.validate()) return;
 
+    final isPatientRole =
+        _selectedRole == AppLocalizations.of(context)!.get('patient') ||
+        _selectedRole == 'Patient';
+
+    // Only require DOB and gender for patients
+    if (isPatientRole && _registerDateOfBirth == null) {
+      _showError('Please select your Date of Birth');
+      return;
+    }
+
+    if (_registerGender == null) {
+      _showError('Please select your Gender');
+      return;
+    }
+
     _setLoading(true);
     try {
       if (!mounted) return;
@@ -117,6 +136,34 @@ class _AuthScreenState extends State<AuthScreen>
               ? 'Doctor'
               : 'Patient';
 
+      double? heightVal;
+      double? weightVal;
+
+      if (role == 'Patient') {
+        final hText = _registerHeightController.text.trim();
+        final wText = _registerWeightController.text.trim();
+        
+        if (hText.isEmpty) {
+          _showError(AppLocalizations.of(context)?.get('enterHeight') ?? 'Please enter your height');
+          _setLoading(false);
+          return;
+        }
+        if (wText.isEmpty) {
+          _showError(AppLocalizations.of(context)?.get('enterWeight') ?? 'Please enter your weight');
+          _setLoading(false);
+          return;
+        }
+        
+        heightVal = double.tryParse(hText);
+        weightVal = double.tryParse(wText);
+        
+        if (heightVal == null || weightVal == null) {
+          _showError('Please enter valid numbers for height and weight');
+          _setLoading(false);
+          return;
+        }
+      }
+
       // Hybrid registration: Back-end first (source of truth), then Firebase
       final user = await AuthService.registerWithEmailAndPassword(
         fullName: _registerNameController.text.trim(),
@@ -124,6 +171,10 @@ class _AuthScreenState extends State<AuthScreen>
         password: _passwordController.text,
         phoneNumber: _registerPhoneController.text.trim(),
         role: role,
+        dateOfBirth: _registerDateOfBirth!,
+        gender: _registerGender!,
+        height: heightVal,
+        weight: weightVal,
       );
 
       _showSuccess('Account created successfully!');
@@ -410,22 +461,30 @@ class _AuthScreenState extends State<AuthScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.white,
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppDimensions.paddingL),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppDimensions.paddingL,
+            AppDimensions.paddingL,
+            AppDimensions.paddingL,
+            0,
+          ),
           child: Column(
             children: [
               const SizedBox(height: 20),
               FadeSlideTransition(
                 delay: const Duration(milliseconds: 100),
-                child: const AppLogo(size: 100),
+                child: const AppLogo(size: 80),
               ),
-              const SizedBox(height: AppDimensions.paddingL),
+              const SizedBox(height: AppDimensions.paddingM),
               FadeSlideTransition(
                 delay: const Duration(milliseconds: 200),
                 child: Text(
                   AppLocalizations.of(context)!.get('accessAccount'),
-                  style: Theme.of(context).textTheme.titleLarge,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -446,13 +505,15 @@ class _AuthScreenState extends State<AuthScreen>
                 ),
               ),
               const SizedBox(height: AppDimensions.paddingL),
-              FadeSlideTransition(
-                delay: const Duration(milliseconds: 400),
-                child: SizedBox(
-                  height: MediaQuery.of(context).size.height * 0.6,
+              Expanded(
+                child: FadeSlideTransition(
+                  delay: const Duration(milliseconds: 400),
                   child: TabBarView(
                     controller: _tabController,
-                    children: [_buildLoginForm(), _buildRegisterForm()],
+                    children: [
+                      _buildLoginForm(),
+                      _buildRegisterForm(),
+                    ],
                   ),
                 ),
               ),
@@ -469,56 +530,58 @@ class _AuthScreenState extends State<AuthScreen>
       child: SingleChildScrollView(
         child: Column(
           children: [
-          _buildTextField(
-            AppLocalizations.of(context)!.get('emailAddress'),
-            Icons.email,
-            controller: _loginEmailController,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return AppLocalizations.of(context)!.get('enterEmail');
-              }
-              if (!value.contains('@')) {
-                return AppLocalizations.of(context)!.get('validEmail');
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: AppDimensions.paddingM),
-          _buildTextField(
-            AppLocalizations.of(context)!.get('password'),
-            Icons.lock,
-            isPassword: true,
-            controller: _loginPasswordController,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return AppLocalizations.of(context)!.get('enterPassword');
-              }
-              if (value.length < 6) {
-                return AppLocalizations.of(context)!.get('passwordLength');
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: AppDimensions.paddingS),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: _showForgotPasswordDialog,
-              child: Text(AppLocalizations.of(context)!.get('forgotPassword')),
+            _buildTextField(
+              AppLocalizations.of(context)!.get('emailAddress'),
+              Icons.email,
+              controller: _loginEmailController,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return AppLocalizations.of(context)!.get('enterEmail');
+                }
+                if (!value.contains('@')) {
+                  return AppLocalizations.of(context)!.get('validEmail');
+                }
+                return null;
+              },
             ),
-          ),
-          const SizedBox(height: AppDimensions.paddingM),
-          CustomButton(
-            text: AppLocalizations.of(context)!.get('login'),
-            isLoading: _isLoading,
-            onPressed: _handleEmailLogin,
-          ),
-          const SizedBox(height: AppDimensions.paddingL),
-          _buildDivider(),
-          const SizedBox(height: AppDimensions.paddingM),
-          _buildSocialButtons(),
-        ],
-      ),
+            const SizedBox(height: AppDimensions.paddingM),
+            _buildTextField(
+              AppLocalizations.of(context)!.get('password'),
+              Icons.lock,
+              isPassword: true,
+              controller: _loginPasswordController,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return AppLocalizations.of(context)!.get('enterPassword');
+                }
+                if (value.length < 8) {
+                  return AppLocalizations.of(context)!.get('passwordLength8');
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: AppDimensions.paddingS),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: _showForgotPasswordDialog,
+                child: Text(
+                  AppLocalizations.of(context)!.get('forgotPassword'),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppDimensions.paddingM),
+            CustomButton(
+              text: AppLocalizations.of(context)!.get('login'),
+              isLoading: _isLoading,
+              onPressed: _handleEmailLogin,
+            ),
+            const SizedBox(height: AppDimensions.paddingL),
+            _buildDivider(),
+            const SizedBox(height: AppDimensions.paddingM),
+            _buildSocialButtons(),
+          ],
+        ),
       ),
     );
   }
@@ -583,19 +646,74 @@ class _AuthScreenState extends State<AuthScreen>
               const SizedBox(height: AppDimensions.paddingM),
             ],
 
-            // Phone Number field (required by back-end)
+            // Phone Number field
             _buildTextField(
-              'Phone Number',
+              AppLocalizations.of(context)!.get('phoneNumber'),
               Icons.phone,
               controller: _registerPhoneController,
+              keyboardType: TextInputType.phone,
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return 'Please enter your phone number';
+                  return AppLocalizations.of(context)!.get('enterPhone');
                 }
                 return null;
               },
             ),
             const SizedBox(height: AppDimensions.paddingM),
+
+            // Date of Birth field (patients only)
+            if (_selectedRole == AppLocalizations.of(context)!.get('patient')) ...[
+              _buildDateOfBirthField(),
+              const SizedBox(height: AppDimensions.paddingM),
+            ],
+
+            // Gender Dropdown
+            _buildGenderDropdown(),
+            const SizedBox(height: AppDimensions.paddingM),
+
+            // Height and Weight Fields (Patients Only)
+            if (_selectedRole == AppLocalizations.of(context)!.get('patient')) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildTextField(
+                      AppLocalizations.of(context)?.get('heightCm') ?? 'Height (cm)',
+                      Icons.height,
+                      controller: _registerHeightController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return AppLocalizations.of(context)?.get('enterHeight') ?? 'Required';
+                        }
+                        if (double.tryParse(value) == null) {
+                          return 'Invalid number';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: AppDimensions.paddingM),
+                  Expanded(
+                    child: _buildTextField(
+                      AppLocalizations.of(context)?.get('weightKg') ?? 'Weight (kg)',
+                      Icons.monitor_weight_outlined,
+                      controller: _registerWeightController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return AppLocalizations.of(context)?.get('enterWeight') ?? 'Required';
+                        }
+                        if (double.tryParse(value) == null) {
+                          return 'Invalid number';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppDimensions.paddingM),
+            ],
 
             _buildTextField(
               AppLocalizations.of(context)!.get('emailAddress'),
@@ -773,11 +891,13 @@ class _AuthScreenState extends State<AuthScreen>
     bool isPassword = false,
     TextEditingController? controller,
     String? Function(String?)? validator,
+    TextInputType? keyboardType,
   }) {
     return TextFormField(
       controller: controller,
       obscureText: isPassword,
       validator: validator,
+      keyboardType: keyboardType,
       autovalidateMode: AutovalidateMode.onUserInteraction,
       decoration: InputDecoration(
         labelText: label,
@@ -792,11 +912,112 @@ class _AuthScreenState extends State<AuthScreen>
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.primaryBlue, width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.error, width: 1),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+        ),
+      ),
+    );
+  }
+
+  /// Reusable Date of Birth picker styled consistently with other fields.
+  Widget _buildDateOfBirthField() {
+    final hasValue = _registerDateOfBirth != null;
+    return InkWell(
+      onTap: () async {
+        final picked = await showDatePicker(
+          context: context,
+          initialDate: _registerDateOfBirth ??
+              DateTime.now().subtract(const Duration(days: 365 * 18)),
+          firstDate: DateTime(1900),
+          lastDate: DateTime.now(),
+          builder: (context, child) {
+            return Theme(
+              data: Theme.of(context).copyWith(
+                colorScheme: Theme.of(context).colorScheme.copyWith(
+                  primary: AppColors.primaryBlue,
+                ),
+              ),
+              child: child!,
+            );
+          },
+        );
+        if (picked != null) {
+          setState(() => _registerDateOfBirth = picked);
+        }
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: AppLocalizations.of(context)!.get('dateOfBirth'),
+          prefixIcon: const Icon(Icons.calendar_today, color: AppColors.primaryBlue),
+          filled: true,
+          fillColor: const Color(0xFFF5F7FA),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+        ),
+        child: Text(
+          hasValue
+              ? '${_registerDateOfBirth!.year}-${_registerDateOfBirth!.month.toString().padLeft(2, '0')}-${_registerDateOfBirth!.day.toString().padLeft(2, '0')}'
+              : AppLocalizations.of(context)!.get('selectDateOfBirth'),
+          style: TextStyle(
+            color: hasValue ? Colors.black87 : AppColors.grey,
+            fontSize: 16,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Reusable Gender dropdown styled consistently with other fields.
+  Widget _buildGenderDropdown() {
+    return DropdownButtonFormField<String>(
+      decoration: InputDecoration(
+        labelText: AppLocalizations.of(context)!.get('gender'),
+        prefixIcon: const Icon(Icons.wc_rounded, color: AppColors.primaryBlue),
+        filled: true,
+        fillColor: const Color(0xFFF5F7FA),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.primaryBlue, width: 1.5),
+        ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.error, width: 1),
         ),
       ),
+      value: _registerGender,
+      hint: Text(
+        AppLocalizations.of(context)!.get('selectGender'),
+        style: TextStyle(color: AppColors.grey),
+      ),
+      items: [
+        DropdownMenuItem(value: 'MALE', child: Text(AppLocalizations.of(context)!.get('male'))),
+        DropdownMenuItem(value: 'FEMALE', child: Text(AppLocalizations.of(context)!.get('female'))),
+      ],
+      onChanged: (value) => setState(() => _registerGender = value),
     );
   }
 }

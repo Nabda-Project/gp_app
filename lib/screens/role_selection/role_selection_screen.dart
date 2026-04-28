@@ -26,6 +26,18 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
   String? selectedRole;
   bool _isLoading = false;
   final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _heightController = TextEditingController();
+  final TextEditingController _weightController = TextEditingController();
+  DateTime? _dateOfBirth;
+  String? _gender;
+
+  @override
+  void dispose() {
+    _phoneController.dispose();
+    _heightController.dispose();
+    _weightController.dispose();
+    super.dispose();
+  }
 
   void _selectRole(String role) {
     setState(() {
@@ -42,6 +54,25 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
       return;
     }
 
+    // Only require DOB for patients
+    if (selectedRole == 'patient' && _dateOfBirth == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select your Date of Birth')),
+        );
+      }
+      return;
+    }
+
+    if (_gender == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select your Gender')),
+        );
+      }
+      return;
+    }
+
     final phone = _phoneController.text.trim();
     if (phone.isEmpty) {
       if (mounted) {
@@ -50,6 +81,43 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
         );
       }
       return;
+    }
+
+    double? heightVal;
+    double? weightVal;
+    
+    if (selectedRole == 'patient') {
+      final hText = _heightController.text.trim();
+      final wText = _weightController.text.trim();
+      
+      if (hText.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please enter your height')),
+          );
+        }
+        return;
+      }
+      if (wText.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please enter your weight')),
+          );
+        }
+        return;
+      }
+      
+      heightVal = double.tryParse(hText);
+      weightVal = double.tryParse(wText);
+      
+      if (heightVal == null || weightVal == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please enter valid numbers for height and weight')),
+          );
+        }
+        return;
+      }
     }
 
     setState(() => _isLoading = true);
@@ -71,6 +139,10 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
           password: generatedPassword,
           phoneNumber: phone,
           role: backendRole,
+          dateOfBirth: _dateOfBirth!,
+          gender: _gender!,
+          height: heightVal,
+          weight: weightVal,
         );
         final backendUser = await BackendAuthService.register(registerRequest);
         backendId = backendUser['id'] as int?;
@@ -98,7 +170,10 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
           try {
             final profile = await BackendAuthService.fetchCurrentUser();
             backendId = profile['id'] as int?;
-            log('Fetched backendId=$backendId from /user/me', name: 'RoleSelection');
+            log(
+              'Fetched backendId=$backendId from /user/me',
+              name: 'RoleSelection',
+            );
           } catch (e) {
             log('Failed to fetch user profile: $e', name: 'RoleSelection');
           }
@@ -114,6 +189,10 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
         email: email,
         phoneNumber: phone,
         role: role,
+        dateOfBirth: _dateOfBirth,
+        gender: _gender,
+        height: heightVal,
+        weight: weightVal,
       );
 
       // Save to Firestore
@@ -159,94 +238,242 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-            const SizedBox(height: AppDimensions.paddingM),
-            FadeSlideTransition(
-              delay: const Duration(milliseconds: 100),
-              child: Text(
-                "Choose your account type",
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.darkBlue,
+              const SizedBox(height: AppDimensions.paddingM),
+              FadeSlideTransition(
+                delay: const Duration(milliseconds: 100),
+                child: Text(
+                  "Choose your account type",
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.darkBlue,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                textAlign: TextAlign.center,
               ),
-            ),
-            const SizedBox(height: 50),
+              const SizedBox(height: 50),
 
-            IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: AnimatedListItem(
-                      index: 0,
-                      child: CustomCard(
-                        label: "Doctor",
-                        icon: Icons.local_hospital,
-                        isSelected: isDoctor,
-                        onTap: () => _selectRole('doctor'),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: AppDimensions.paddingM),
-                  Expanded(
-                    child: AnimatedListItem(
-                      index: 1,
-                      child: CustomCard(
-                        label: "Patient",
-                        icon: Icons.person,
-                        isSelected: isPatient,
-                        onTap: () => _selectRole('patient'),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // Phone number field (shown only when a role is selected)
-            AnimatedOpacity(
-              opacity: selectedRole != null ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 300),
-              child: selectedRole == null
-                  ? const SizedBox.shrink()
-                  : TextField(
-                      controller: _phoneController,
-                      keyboardType: TextInputType.phone,
-                      decoration: InputDecoration(
-                        labelText: 'Phone Number',
-                        prefixIcon: const Icon(Icons.phone, color: AppColors.primaryBlue),
-                        filled: true,
-                        fillColor: AppColors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: AnimatedListItem(
+                        index: 0,
+                        child: CustomCard(
+                          label: "Doctor",
+                          icon: Icons.local_hospital,
+                          isSelected: isDoctor,
+                          onTap: () => _selectRole('doctor'),
                         ),
                       ),
                     ),
-            ),
-            const SizedBox(height: 20),
-
-            // Only show continue button if a role is selected
-            AnimatedOpacity(
-              opacity: selectedRole != null ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 300),
-              child: CustomButton(
-                text: "Continue as ${isDoctor ? 'Doctor' : 'Patient'}",
-                isLoading: _isLoading,
-                onPressed: selectedRole != null ? _confirmRole : () {},
+                    const SizedBox(width: AppDimensions.paddingM),
+                    Expanded(
+                      child: AnimatedListItem(
+                        index: 1,
+                        child: CustomCard(
+                          label: "Patient",
+                          icon: Icons.person,
+                          isSelected: isPatient,
+                          onTap: () => _selectRole('patient'),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 50),
-          ],
+
+              const SizedBox(height: 20),
+
+              // Phone number field (shown only when a role is selected)
+              AnimatedOpacity(
+                opacity: selectedRole != null ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 300),
+                child:
+                    selectedRole == null
+                        ? const SizedBox.shrink()
+                        : TextField(
+                          controller: _phoneController,
+                          keyboardType: TextInputType.phone,
+                          decoration: InputDecoration(
+                            labelText: 'Phone Number',
+                            prefixIcon: const Icon(
+                              Icons.phone,
+                              color: AppColors.primaryBlue,
+                            ),
+                            filled: true,
+                            fillColor: AppColors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                        ),
+              ),
+              const SizedBox(height: 20),
+
+              // Date of Birth field (patients only)
+              AnimatedOpacity(
+                opacity: isPatient ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 300),
+                child:
+                    !isPatient
+                        ? const SizedBox.shrink()
+                        : InkWell(
+                          onTap: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: DateTime.now().subtract(
+                                const Duration(days: 365 * 18),
+                              ),
+                              firstDate: DateTime(1900),
+                              lastDate: DateTime.now(),
+                            );
+                            if (picked != null) {
+                              setState(() => _dateOfBirth = picked);
+                            }
+                          },
+                          child: InputDecorator(
+                            decoration: InputDecoration(
+                              labelText: 'Date of Birth',
+                              prefixIcon: const Icon(
+                                Icons.calendar_today,
+                                color: AppColors.primaryBlue,
+                              ),
+                              filled: true,
+                              fillColor: AppColors.white,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                            child: Text(
+                              _dateOfBirth == null
+                                  ? 'Select Date of Birth'
+                                  : '${_dateOfBirth!.year}-${_dateOfBirth!.month.toString().padLeft(2, '0')}-${_dateOfBirth!.day.toString().padLeft(2, '0')}',
+                            ),
+                          ),
+                        ),
+              ),
+              const SizedBox(height: 20),
+
+              // Gender Dropdown
+              AnimatedOpacity(
+                opacity: selectedRole != null ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 300),
+                child:
+                    selectedRole == null
+                        ? const SizedBox.shrink()
+                        : DropdownButtonFormField<String>(
+                          decoration: InputDecoration(
+                            labelText: 'Gender',
+                            prefixIcon: const Icon(
+                              Icons.person_outline,
+                              color: AppColors.primaryBlue,
+                            ),
+                            filled: true,
+                            fillColor: AppColors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                          value: _gender,
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'MALE',
+                              child: Text('Male'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'FEMALE',
+                              child: Text('Female'),
+                            ),
+                          ],
+                          onChanged: (value) => setState(() => _gender = value),
+                        ),
+              ),
+              const SizedBox(height: 20),
+
+              // Height and Weight Fields (Patients Only)
+              AnimatedOpacity(
+                opacity: isPatient ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 300),
+                child: !isPatient
+                    ? const SizedBox.shrink()
+                    : Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _heightController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              decoration: InputDecoration(
+                                labelText: 'Height (cm)',
+                                prefixIcon: const Icon(Icons.height, color: AppColors.primaryBlue),
+                                filled: true,
+                                fillColor: AppColors.white,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: AppDimensions.paddingM),
+                          Expanded(
+                            child: TextField(
+                              controller: _weightController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              decoration: InputDecoration(
+                                labelText: 'Weight (kg)',
+                                prefixIcon: const Icon(Icons.monitor_weight_outlined, color: AppColors.primaryBlue),
+                                filled: true,
+                                fillColor: AppColors.white,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+              if (isPatient) const SizedBox(height: 20),
+
+              // Only show continue button if a role is selected
+              AnimatedOpacity(
+                opacity: selectedRole != null ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 300),
+                child: CustomButton(
+                  text: "Continue as ${isDoctor ? 'Doctor' : 'Patient'}",
+                  isLoading: _isLoading,
+                  onPressed: selectedRole != null ? _confirmRole : () {},
+                ),
+              ),
+              const SizedBox(height: 50),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
