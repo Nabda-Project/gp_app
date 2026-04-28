@@ -107,6 +107,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                     unit: 'bpm',
                     icon: Icons.favorite,
                     color: Colors.redAccent,
+                    subtleMode: true,
                   ),
                   VitalCard(
                     label: AppLocalizations.of(context)!.get('bloodOxygen'),
@@ -114,6 +115,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                     unit: '%',
                     icon: Icons.water_drop,
                     color: Colors.lightBlue,
+                    subtleMode: true,
                   ),
                   VitalCard(
                     label: AppLocalizations.of(context)!.get('batteryLevel'),
@@ -121,6 +123,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                     unit: '%',
                     icon: Icons.battery_charging_full,
                     color: Colors.green,
+                    subtleMode: true,
                   ),
                   VitalCard(
                     label: AppLocalizations.of(context)!.get('nextFollowUp'),
@@ -128,6 +131,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                     unit: '',
                     icon: Icons.calendar_today,
                     color: AppColors.primaryBlue,
+                    subtleMode: true,
                   ),
                 ],
               ),
