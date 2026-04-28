@@ -308,6 +308,10 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
           });
           
           if (index == 0) {
+            // Reload user in case profile was edited
+            setState(() {
+              _currentUser = StorageService.getUser();
+            });
             // When returning to dashboard, refresh the general notification badge count
             if (_currentUser?.backendId != null) {
               _fetchUnreadNotifCount(_currentUser!.backendId!);

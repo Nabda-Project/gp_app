@@ -548,6 +548,8 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
         onPageChanged: (index) {
           setState(() {
             _currentIndex = index;
+            // Reload user in case profile was edited
+            _currentUser = StorageService.getUser();
           });
         },
         physics: const BouncingScrollPhysics(),
@@ -1018,14 +1020,14 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                               }
                             });
                           },
-                          onMessageTap: () async {
+                          onMessageTap: () {
+                            // Fire-and-forget — don't block navigation
                             if (_currentUser?.backendId != null) {
-                              await NotificationApiService.markChatAsRead(
+                              NotificationApiService.markChatAsRead(
                                 _currentUser!.backendId!,
                                 patient.id,
                               );
                             }
-                            if (!mounted) return;
                             Navigator.pushNamed(
                               context,
                               '/patient_chat',
@@ -1035,8 +1037,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                                 'backendId': patient.id,
                               },
                             ).then((_) {
-                              setState(() => _isLoadingChats = true);
-                              _loadChatsData();
+                              _loadChatsData(silent: true);
                               if (_currentUser?.backendId != null) {
                                 _fetchUnreadNotifCount(_currentUser!.backendId!);
                               }
@@ -1058,43 +1059,63 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
   // ─── Chats Tab ────────────────────────────────────────────────────────────
 
   /// Load conversations from the new API — only partners with existing messages.
-  Future<void> _loadChatsData() async {
+  /// When [silent] is true the existing _chatContacts are kept visible while
+  /// the API runs in the background (no skeleton loader).
+  Future<void> _loadChatsData({bool silent = false}) async {
     final myId = _currentUser?.backendId;
     if (myId == null) return;
+
+    if (!silent) {
+      // Only show the loading skeleton on the very first load
+      // (subsequent refreshes keep the list visible)
+    }
 
     try {
       final chatService = ChatService.instance;
       if (chatService == null) {
-        if (mounted) setState(() => _isLoadingChats = false);
+        if (!silent && mounted) setState(() => _isLoadingChats = false);
         return;
       }
       final contacts = await chatService.fetchConversations();
 
-      // Fetch presence in parallel for each contact
-      final presenceMap = <int, PresenceStatus>{};
-      await Future.wait(contacts.map((contact) async {
-        try {
-          final presence =
-              await PresenceService.fetchPresence(contact.partnerId);
-          presenceMap[contact.partnerId] = presence;
-        } catch (_) {
-          presenceMap[contact.partnerId] =
-              PresenceStatus(online: false, lastSeen: null);
-        }
-      }));
-
       if (mounted) {
         setState(() {
           _chatContacts = contacts;
-          _presenceMap = presenceMap;
           _isLoadingChats = false;
         });
       }
+
+      // Fetch presence in the background — don't block the UI
+      _refreshPresenceInBackground(contacts);
     } catch (e) {
       log('Failed to load chats: $e', name: 'DoctorDashboard');
       if (mounted) {
         setState(() => _isLoadingChats = false);
       }
+    }
+  }
+
+  /// Fetches presence for each contact in the background and updates the UI
+  /// once all results are ready. This does NOT block _loadChatsData.
+  Future<void> _refreshPresenceInBackground(List<ChatContactModel> contacts) async {
+    try {
+      final presenceMap = <int, PresenceStatus>{};
+      await Future.wait(contacts.map((contact) async {
+        try {
+          final presence = await PresenceService.fetchPresence(contact.partnerId);
+          presenceMap[contact.partnerId] = presence;
+        } catch (_) {
+          presenceMap[contact.partnerId] = PresenceStatus(online: false, lastSeen: null);
+        }
+      }));
+
+      if (mounted) {
+        setState(() {
+          _presenceMap = presenceMap;
+        });
+      }
+    } catch (e) {
+      log('Failed to refresh presence: $e', name: 'DoctorDashboard');
     }
   }
 
@@ -1198,14 +1219,14 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () async {
+          onTap: () {
+            // Fire-and-forget — don't block navigation
             if (_currentUser?.backendId != null) {
-              await NotificationApiService.markChatAsRead(
+              NotificationApiService.markChatAsRead(
                 _currentUser!.backendId!,
                 contact.partnerId,
               );
             }
-            if (!mounted) return;
             Navigator.pushNamed(
               context,
               '/patient_chat',
@@ -1215,9 +1236,8 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                 'backendId': contact.partnerId,
               },
             ).then((_) {
-              // Refresh chats data to update unread counts
-              setState(() => _isLoadingChats = true);
-              _loadChatsData();
+              // Refresh chats data to update unread counts (silently)
+              _loadChatsData(silent: true);
               if (_currentUser?.backendId != null) {
                 _fetchUnreadNotifCount(_currentUser!.backendId!);
               }
@@ -1553,8 +1573,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                                           'backendId': patient.id,
                                         },
                                       ).then((_) {
-                                        setState(() => _isLoadingChats = true);
-                                        _loadChatsData();
+                                        _loadChatsData(silent: true);
                                         if (_currentUser?.backendId != null) {
                                           _fetchUnreadNotifCount(_currentUser!.backendId!);
                                         }

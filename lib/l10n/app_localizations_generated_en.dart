@@ -97,6 +97,30 @@ class GeneratedLocalizationsEn extends GeneratedLocalizations {
   String get enterLicense => 'Please enter license number';
 
   @override
+  String get phoneNumber => 'Phone Number';
+
+  @override
+  String get enterPhone => 'Please enter your phone number';
+
+  @override
+  String get dateOfBirth => 'Date of Birth';
+
+  @override
+  String get selectDateOfBirth => 'Select your date of birth';
+
+  @override
+  String get gender => 'Gender';
+
+  @override
+  String get selectGender => 'Select your gender';
+
+  @override
+  String get male => 'Male';
+
+  @override
+  String get female => 'Female';
+
+  @override
   String get resetPassword => 'Reset Password';
 
   @override
@@ -527,4 +551,52 @@ class GeneratedLocalizationsEn extends GeneratedLocalizations {
 
   @override
   String get deleteAll => 'Delete All';
+
+  @override
+  String get heightCm => 'Height (cm)';
+
+  @override
+  String get enterHeight => 'Please enter your height';
+
+  @override
+  String get weightKg => 'Weight (kg)';
+
+  @override
+  String get enterWeight => 'Please enter your weight';
+
+  @override
+  String get chooseAccountType => 'Choose your account type';
+
+  @override
+  String get continueAsDoctor => 'Continue as Doctor';
+
+  @override
+  String get continueAsPatient => 'Continue as Patient';
+
+  @override
+  String get editProfile => 'Edit Profile';
+
+  @override
+  String get saveChanges => 'Save Changes';
+
+  @override
+  String get profileUpdated => 'Profile updated successfully';
+
+  @override
+  String get personalInfo => 'Personal Information';
+
+  @override
+  String get healthInfo => 'Health Information';
+
+  @override
+  String get changeProfilePicture => 'Change Profile Picture';
+
+  @override
+  String get takePhoto => 'Take Photo';
+
+  @override
+  String get chooseFromGallery => 'Choose from Gallery';
+
+  @override
+  String get removePhoto => 'Remove Photo';
 }

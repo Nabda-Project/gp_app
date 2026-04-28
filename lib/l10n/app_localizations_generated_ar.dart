@@ -97,6 +97,30 @@ class GeneratedLocalizationsAr extends GeneratedLocalizations {
   String get enterLicense => 'يرجى إدخال رقم الترخيص';
 
   @override
+  String get phoneNumber => 'رقم الهاتف';
+
+  @override
+  String get enterPhone => 'يرجى إدخال رقم هاتفك';
+
+  @override
+  String get dateOfBirth => 'تاريخ الميلاد';
+
+  @override
+  String get selectDateOfBirth => 'اختر تاريخ ميلادك';
+
+  @override
+  String get gender => 'الجنس';
+
+  @override
+  String get selectGender => 'اختر جنسك';
+
+  @override
+  String get male => 'ذكر';
+
+  @override
+  String get female => 'أنثى';
+
+  @override
   String get resetPassword => 'استعادة كلمة المرور';
 
   @override
@@ -525,4 +549,52 @@ class GeneratedLocalizationsAr extends GeneratedLocalizations {
 
   @override
   String get deleteAll => 'حذف الكل';
+
+  @override
+  String get heightCm => 'الطول (سم)';
+
+  @override
+  String get enterHeight => 'يرجى إدخال طولك';
+
+  @override
+  String get weightKg => 'الوزن (كجم)';
+
+  @override
+  String get enterWeight => 'يرجى إدخال وزنك';
+
+  @override
+  String get chooseAccountType => 'اختر نوع حسابك';
+
+  @override
+  String get continueAsDoctor => 'المتابعة كطبيب';
+
+  @override
+  String get continueAsPatient => 'المتابعة كمريض';
+
+  @override
+  String get editProfile => 'تعديل الملف الشخصي';
+
+  @override
+  String get saveChanges => 'حفظ التغييرات';
+
+  @override
+  String get profileUpdated => 'تم تحديث الملف الشخصي بنجاح';
+
+  @override
+  String get personalInfo => 'المعلومات الشخصية';
+
+  @override
+  String get healthInfo => 'المعلومات الصحية';
+
+  @override
+  String get changeProfilePicture => 'تغيير صورة الملف الشخصي';
+
+  @override
+  String get takePhoto => 'التقاط صورة';
+
+  @override
+  String get chooseFromGallery => 'اختيار من المعرض';
+
+  @override
+  String get removePhoto => 'إزالة الصورة';
 }

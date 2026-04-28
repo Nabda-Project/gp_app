@@ -8,6 +8,10 @@ class UserModel {
   final String role; // 'Patient' or 'Doctor' (title-case for mobile display)
   final String? phoneNumber;
   final String? licenseNumber;
+  final DateTime? dateOfBirth;
+  final String? gender;
+  final double? height; // in cm
+  final double? weight; // in kg
 
   UserModel({
     required this.id,
@@ -17,6 +21,10 @@ class UserModel {
     required this.role,
     this.phoneNumber,
     this.licenseNumber,
+    this.dateOfBirth,
+    this.gender,
+    this.height,
+    this.weight,
   });
 
   /// Convert to Map for Firestore
@@ -29,6 +37,10 @@ class UserModel {
       'role': role,
       'phoneNumber': phoneNumber,
       'licenseNumber': licenseNumber,
+      'dateOfBirth': dateOfBirth?.toIso8601String(),
+      'gender': gender,
+      'height': height,
+      'weight': weight,
     };
   }
 
@@ -42,22 +54,34 @@ class UserModel {
       role: map['role'] ?? 'Patient',
       phoneNumber: map['phoneNumber'] as String?,
       licenseNumber: map['licenseNumber'] as String?,
+      dateOfBirth: map['dateOfBirth'] != null ? DateTime.tryParse(map['dateOfBirth'] as String) : null,
+      gender: map['gender'] as String?,
+      height: (map['height'] as num?)?.toDouble(),
+      weight: (map['weight'] as num?)?.toDouble(),
     );
   }
 
-  /// Create from back-end JSON (User entity returned by POST /api/auth/register).
+  /// Create from back-end JSON.
+  /// Handles both [RegisterResponse] (uses "name") and [UserResponse] (uses "fullName").
   /// Back-end role is "PATIENT"/"DOCTOR" (uppercase); we normalise to title-case.
   factory UserModel.fromBackendJson(Map<String, dynamic> json, {String? firebaseUid}) {
     final rawRole = json['role'] as String? ?? 'PATIENT';
     final role = rawRole == 'DOCTOR' ? 'Doctor' : 'Patient';
 
+    // RegisterResponse → 'name'; UserResponse / fetchCurrentUser → 'fullName'
+    final fullName = (json['fullName'] ?? json['name']) as String? ?? '';
+
     return UserModel(
       id: firebaseUid ?? '',
       backendId: json['id'] as int?,
-      fullName: json['fullName'] as String? ?? '',
+      fullName: fullName,
       email: json['email'] as String? ?? '',
       role: role,
       phoneNumber: json['phoneNumber'] as String?,
+      dateOfBirth: json['dateOfBirth'] != null ? DateTime.tryParse(json['dateOfBirth'] as String) : null,
+      gender: json['gender'] as String?,
+      height: (json['height'] as num?)?.toDouble(),
+      weight: (json['weight'] as num?)?.toDouble(),
     );
   }
 
@@ -73,6 +97,10 @@ class UserModel {
     String? role,
     String? phoneNumber,
     String? licenseNumber,
+    DateTime? dateOfBirth,
+    String? gender,
+    double? height,
+    double? weight,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -82,6 +110,10 @@ class UserModel {
       role: role ?? this.role,
       phoneNumber: phoneNumber ?? this.phoneNumber,
       licenseNumber: licenseNumber ?? this.licenseNumber,
+      dateOfBirth: dateOfBirth ?? this.dateOfBirth,
+      gender: gender ?? this.gender,
+      height: height ?? this.height,
+      weight: weight ?? this.weight,
     );
   }
 }
@@ -104,13 +136,17 @@ class UserModelAdapter extends TypeAdapter<UserModel> {
       licenseNumber: fields[4] as String?,
       backendId: fields.containsKey(5) ? fields[5] as int? : null,
       phoneNumber: fields.containsKey(6) ? fields[6] as String? : null,
+      dateOfBirth: fields.containsKey(7) ? fields[7] as DateTime? : null,
+      gender: fields.containsKey(8) ? fields[8] as String? : null,
+      height: fields.containsKey(9) ? (fields[9] as num?)?.toDouble() : null,
+      weight: fields.containsKey(10) ? (fields[10] as num?)?.toDouble() : null,
     );
   }
 
   @override
   void write(BinaryWriter writer, UserModel obj) {
     writer
-      ..writeByte(7) // total number of fields
+      ..writeByte(11) // total number of fields
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -124,6 +160,14 @@ class UserModelAdapter extends TypeAdapter<UserModel> {
       ..writeByte(5)
       ..write(obj.backendId)
       ..writeByte(6)
-      ..write(obj.phoneNumber);
+      ..write(obj.phoneNumber)
+      ..writeByte(7)
+      ..write(obj.dateOfBirth)
+      ..writeByte(8)
+      ..write(obj.gender)
+      ..writeByte(9)
+      ..write(obj.height)
+      ..writeByte(10)
+      ..write(obj.weight);
   }
 }

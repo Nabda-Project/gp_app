@@ -9,6 +9,7 @@ class ApiEndpoints {
 
   // ─── User ───
   static const String currentUser = '/user/me';
+  static const String updateProfile = '/user/me';
   static const String updateFcmToken = '/user/fcm-token';
 
   // ─── Doctor ───

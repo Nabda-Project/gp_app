@@ -51,7 +51,19 @@ class AppLocalizations {
       'passwordsNoMatch': 'Passwords do not match',
       'enterName': 'Please enter your full name',
       'enterLicense': 'Please enter license number',
+      'phoneNumber': 'Phone Number',
+      'enterPhone': 'Please enter your phone number',
+      'dateOfBirth': 'Date of Birth',
+      'selectDateOfBirth': 'Select your date of birth',
+      'gender': 'Gender',
+      'selectGender': 'Select your gender',
+      'male': 'Male',
+      'female': 'Female',
+      'editProfile': 'Edit Profile',
+      'updateProfile': 'Update Profile',
       'resetPassword': 'Reset Password',
+      'personalInfo': 'Personal Information',
+      'healthInfo': 'Health Information',
       'resetPasswordDesc':
           'Enter your email address and we\'ll send you a link to reset your password.',
       'sendResetLink': 'Send Reset Link',
@@ -200,6 +212,9 @@ class AppLocalizations {
       'reconnectingSuccess': 'Reconnected successfully!',
       'noInternetTitle': 'No Internet Connection',
       'noInternetDesc': 'Please check your network settings and try again.',
+      'chooseAccountType': 'Choose your account type',
+      'continueAsDoctor': 'Continue as Doctor',
+      'continueAsPatient': 'Continue as Patient',
     },
     'ar': {
       'appName': 'هيلث سينك',
@@ -232,6 +247,14 @@ class AppLocalizations {
       'passwordsNoMatch': 'كلمتا المرور غير متطابقتين',
       'enterName': 'يرجى إدخال الاسم الكامل',
       'enterLicense': 'يرجى إدخال رقم الترخيص',
+      'phoneNumber': 'رقم الهاتف',
+      'enterPhone': 'يرجى إدخال رقم هاتفك',
+      'dateOfBirth': 'تاريخ الميلاد',
+      'selectDateOfBirth': 'اختر تاريخ ميلادك',
+      'gender': 'الجنس',
+      'selectGender': 'اختر جنسك',
+      'male': 'ذكر',
+      'female': 'أنثى',
       'resetPassword': 'استعادة كلمة المرور',
       'resetPasswordDesc':
           'أدخل بريدك الإلكتروني وسنرسل لك رابطًا لإعادة تعيين كلمة المرور.',
@@ -350,19 +373,16 @@ class AppLocalizations {
       'online': 'عن بُعد',
       'inPerson': 'حضوري',
       'noData': 'لا توجد بيانات',
-      'passwordResetSent':
-          'تم إرسال رابط استعادة كلمة المرور! تحقق من بريدك.',
+      'passwordResetSent': 'تم إرسال رابط استعادة كلمة المرور! تحقق من بريدك.',
       'missedAppointments': 'المواعيد الفائتة',
       'upcomingFollowUps': 'المواعيد القادمة',
       'noFollowUps': 'لا توجد مواعيد قادمة',
       'bodyTemp': 'حرارة الجسم',
       'yourDoctor': 'طبيبك',
       'noDoctorAssigned': 'لا يوجد طبيب معين بعد',
-      'noDoctorAssignedDesc':
-          'سيظهر فريق الرعاية الخاص بك هنا بمجرد التعيين.',
+      'noDoctorAssignedDesc': 'سيظهر فريق الرعاية الخاص بك هنا بمجرد التعيين.',
       'noPatientsAssigned': 'لا يوجد مرضى معينين بعد.',
-      'noConversations':
-          'لا توجد محادثات بعد.\nابدأ المحادثة من تاب المرضى!',
+      'noConversations': 'لا توجد محادثات بعد.\nابدأ المحادثة من تاب المرضى!',
       'appointmentConfirmed': 'تم تأكيد الموعد',
       'appointmentCancelled': 'تم إلغاء الموعد',
       'appointmentCompleted': 'تم إكمال الموعد',
@@ -382,13 +402,18 @@ class AppLocalizations {
       'reconnectingSuccess': 'تم إعادة الاتصال بنجاح!',
       'noInternetTitle': 'لا يوجد اتصال بالإنترنت',
       'noInternetDesc': 'يرجى التحقق من إعدادات الشبكة والمحاولة مرة أخرى.',
+      'chooseAccountType': 'اختر نوع الحساب',
+      'continueAsDoctor': 'المتابعة كطبيب',
+      'continueAsPatient': 'المتابعة كمريض',
     },
   };
 
   /// Get a localized string by key.
   String get(String key) {
     final langCode = locale.languageCode;
-    return _localizedValues[langCode]?[key] ?? _localizedValues['en']?[key] ?? key;
+    return _localizedValues[langCode]?[key] ??
+        _localizedValues['en']?[key] ??
+        key;
   }
 }
 

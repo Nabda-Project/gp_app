@@ -275,6 +275,54 @@ abstract class GeneratedLocalizations {
   /// **'Please enter license number'**
   String get enterLicense;
 
+  /// No description provided for @phoneNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone Number'**
+  String get phoneNumber;
+
+  /// No description provided for @enterPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter your phone number'**
+  String get enterPhone;
+
+  /// No description provided for @dateOfBirth.
+  ///
+  /// In en, this message translates to:
+  /// **'Date of Birth'**
+  String get dateOfBirth;
+
+  /// No description provided for @selectDateOfBirth.
+  ///
+  /// In en, this message translates to:
+  /// **'Select your date of birth'**
+  String get selectDateOfBirth;
+
+  /// No description provided for @gender.
+  ///
+  /// In en, this message translates to:
+  /// **'Gender'**
+  String get gender;
+
+  /// No description provided for @selectGender.
+  ///
+  /// In en, this message translates to:
+  /// **'Select your gender'**
+  String get selectGender;
+
+  /// No description provided for @male.
+  ///
+  /// In en, this message translates to:
+  /// **'Male'**
+  String get male;
+
+  /// No description provided for @female.
+  ///
+  /// In en, this message translates to:
+  /// **'Female'**
+  String get female;
+
   /// No description provided for @resetPassword.
   ///
   /// In en, this message translates to:
@@ -1114,6 +1162,102 @@ abstract class GeneratedLocalizations {
   /// In en, this message translates to:
   /// **'Delete All'**
   String get deleteAll;
+
+  /// No description provided for @heightCm.
+  ///
+  /// In en, this message translates to:
+  /// **'Height (cm)'**
+  String get heightCm;
+
+  /// No description provided for @enterHeight.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter your height'**
+  String get enterHeight;
+
+  /// No description provided for @weightKg.
+  ///
+  /// In en, this message translates to:
+  /// **'Weight (kg)'**
+  String get weightKg;
+
+  /// No description provided for @enterWeight.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter your weight'**
+  String get enterWeight;
+
+  /// No description provided for @chooseAccountType.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose your account type'**
+  String get chooseAccountType;
+
+  /// No description provided for @continueAsDoctor.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue as Doctor'**
+  String get continueAsDoctor;
+
+  /// No description provided for @continueAsPatient.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue as Patient'**
+  String get continueAsPatient;
+
+  /// No description provided for @editProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Profile'**
+  String get editProfile;
+
+  /// No description provided for @saveChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Save Changes'**
+  String get saveChanges;
+
+  /// No description provided for @profileUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile updated successfully'**
+  String get profileUpdated;
+
+  /// No description provided for @personalInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Personal Information'**
+  String get personalInfo;
+
+  /// No description provided for @healthInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Health Information'**
+  String get healthInfo;
+
+  /// No description provided for @changeProfilePicture.
+  ///
+  /// In en, this message translates to:
+  /// **'Change Profile Picture'**
+  String get changeProfilePicture;
+
+  /// No description provided for @takePhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Take Photo'**
+  String get takePhoto;
+
+  /// No description provided for @chooseFromGallery.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose from Gallery'**
+  String get chooseFromGallery;
+
+  /// No description provided for @removePhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Photo'**
+  String get removePhoto;
 }
 
 class _GeneratedLocalizationsDelegate
