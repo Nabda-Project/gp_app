@@ -51,6 +51,10 @@ class AuthService {
     required String password,
     required String phoneNumber,
     required String role, // 'Doctor' or 'Patient' (title-case from UI)
+    required DateTime dateOfBirth,
+    required String gender,
+    double? height,
+    double? weight,
   }) async {
     // ── 1. Register on back-end (source of truth) ──
     final backendRole = role == 'Doctor' ? 'DOCTOR' : 'PATIENT';
@@ -60,6 +64,10 @@ class AuthService {
       password: password,
       phoneNumber: phoneNumber,
       role: backendRole,
+      dateOfBirth: dateOfBirth,
+      gender: gender,
+      height: height,
+      weight: weight,
     );
 
     Map<String, dynamic> backendUser;
@@ -101,9 +109,17 @@ class AuthService {
     await TokenService.saveCredentials(email, password);
 
     // ── 4. Build UserModel and persist ──
+    // Start from the back-end response, then enrich with the fields we
+    // already know (in case the response DTO doesn't include them).
     final user = UserModel.fromBackendJson(
       backendUser,
       firebaseUid: firebaseCred.user?.uid,
+    ).copyWith(
+      phoneNumber: phoneNumber,
+      dateOfBirth: dateOfBirth,
+      gender: gender,
+      height: height,
+      weight: weight,
     );
 
     // Save to Firestore (for existing Firestore-dependent features)
@@ -189,7 +205,16 @@ class AuthService {
         finalUser = finalUser.copyWith(
           backendId: backendId,
           role: backendRole == 'DOCTOR' ? 'Doctor' : 'Patient',
+          phoneNumber: profile['phoneNumber'] as String?,
+          gender: profile['gender'] as String?,
+          height: (profile['height'] as num?)?.toDouble(),
+          weight: (profile['weight'] as num?)?.toDouble(),
         );
+        if (profile['dateOfBirth'] != null) {
+          finalUser = finalUser.copyWith(
+            dateOfBirth: DateTime.tryParse(profile['dateOfBirth'] as String),
+          );
+        }
         log('Fetched backendId=$backendId from /user/me', name: 'AuthService');
       } catch (e) {
         log('Failed to fetch back-end profile: $e', name: 'AuthService');
@@ -255,6 +280,13 @@ class AuthService {
           fullName: fullName,
           email: email,
           role: role,
+          phoneNumber: backendProfile['phoneNumber'] as String?,
+          gender: backendProfile['gender'] as String?,
+          dateOfBirth: backendProfile['dateOfBirth'] != null
+              ? DateTime.tryParse(backendProfile['dateOfBirth'] as String)
+              : null,
+          height: (backendProfile['height'] as num?)?.toDouble(),
+          weight: (backendProfile['weight'] as num?)?.toDouble(),
         );
         await StorageService.saveUser(user);
 

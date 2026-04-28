@@ -73,23 +73,20 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
       return;
     }
 
-    // Load history first
-    final history = await _chatService!.fetchHistory(_doctorId);
-    if (mounted) {
-      setState(() {
-        _messages.addAll(history);
-        _isLoading = false;
-      });
-      _scrollToBottom();
-    }
+    // Show the chat UI immediately while history loads
+    if (mounted) setState(() => _isLoading = false);
 
-    // Mark messages from the doctor as read
+    // Load history in background and update UI when ready
+    _chatService!.fetchHistory(_doctorId).then((history) {
+      if (mounted) {
+        setState(() => _messages.addAll(history));
+        _scrollToBottom();
+      }
+    });
+
+    // Fire-and-forget — don't block UI
     _chatService!.markAsRead(_doctorId);
-
-    // Auto-clear CHAT notifications for this doctor from the notification table
     NotificationApiService.deleteChatNotifications(_myId, _doctorId);
-
-    // Fetch initial presence
     _fetchPresence();
 
     // Poll presence every 15 seconds
@@ -240,19 +237,7 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
         : AppLocalizations.of(context)!.get('doctorChatTitle');
 
     return PopScope(
-      canPop: Navigator.canPop(context),
-      onPopInvoked: (didPop) {
-        if (!didPop) {
-          final role = StorageService.getUser()?.role;
-          if (role == 'DOCTOR') {
-            Navigator.pushReplacementNamed(context, '/doctor_dashboard');
-          } else if (role == 'PATIENT') {
-            Navigator.pushReplacementNamed(context, '/patient_dashboard');
-          } else {
-            Navigator.pushReplacementNamed(context, '/splash');
-          }
-        }
-      },
+      canPop: true,
       child: Scaffold(
         backgroundColor: AppColors.background,
         appBar: AppBar(

@@ -115,12 +115,33 @@ class _SplashScreenState extends State<SplashScreen>
         }
       }
 
-      // Refresh back-end JWT (it may have expired since last session)
+      // Check for zombie state: Firebase survived a reinstall, but backend credentials wiped.
+      final credentials = await TokenService.getCredentials();
+      if (credentials == null) {
+        log("Backend credentials missing but Firebase user exists. Performing clean logout.", name: 'SplashScreen');
+        await AuthService.signOut();
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            PageRouteBuilder(
+              pageBuilder: (_, __, ___) => const OnboardingScreen(),
+              transitionDuration: const Duration(milliseconds: 1000),
+              transitionsBuilder: (_, animation, __, child) {
+                return FadeTransition(opacity: animation, child: child);
+              },
+            ),
+          );
+        }
+        return;
+      }
+
+      // Proactively refresh the back-end JWT so the first API call won't 401.
+      // This handles the common case where the token expired while the app was closed.
       try {
-        final hasToken = await TokenService.hasToken();
-        if (!hasToken) {
-          log("No JWT found, attempting auto-re-login...", name: 'SplashScreen');
-          await AuthService.refreshBackendToken();
+        final refreshed = await AuthService.refreshBackendToken();
+        if (!refreshed) {
+          log("JWT refresh failed (non-critical, maybe server down) – will rely on auto-retry",
+              name: 'SplashScreen');
         }
       } catch (e) {
         log("JWT refresh failed (non-critical): $e", name: 'SplashScreen');

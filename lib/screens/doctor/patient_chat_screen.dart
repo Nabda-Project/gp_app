@@ -94,25 +94,22 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
       return;
     }
 
-    // Load history
+    // Show the chat UI immediately (empty state) while history loads
+    if (mounted) setState(() => _isLoading = false);
+
+    // Load history in background and update UI when ready
     debugPrint('PatientChatScreen: Loading history between $_myId and $_patientId...');
-    final history = await _chatService!.fetchHistory(_patientId);
-    debugPrint('PatientChatScreen: Loaded ${history.length} messages');
-    if (mounted) {
-      setState(() {
-        _messages.addAll(history);
-        _isLoading = false;
-      });
-      _scrollToBottom();
-    }
+    _chatService!.fetchHistory(_patientId).then((history) {
+      debugPrint('PatientChatScreen: Loaded ${history.length} messages');
+      if (mounted) {
+        setState(() => _messages.addAll(history));
+        _scrollToBottom();
+      }
+    });
 
-    // Mark messages from this patient as read
+    // Fire-and-forget — don't block UI
     _chatService!.markAsRead(_patientId);
-
-    // Auto-clear CHAT notifications for this patient from the notification table
     NotificationApiService.deleteChatNotifications(_myId, _patientId);
-
-    // Fetch initial presence
     _fetchPresence();
 
     // Poll presence every 15 seconds
@@ -258,19 +255,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: Navigator.canPop(context),
-      onPopInvoked: (didPop) {
-        if (!didPop) {
-          final role = StorageService.getUser()?.role;
-          if (role == 'DOCTOR') {
-            Navigator.pushReplacementNamed(context, '/doctor_dashboard');
-          } else if (role == 'PATIENT') {
-            Navigator.pushReplacementNamed(context, '/patient_dashboard');
-          } else {
-            Navigator.pushReplacementNamed(context, '/splash');
-          }
-        }
-      },
+      canPop: true,
       child: Scaffold(
         backgroundColor: AppColors.background,
         appBar: AppBar(

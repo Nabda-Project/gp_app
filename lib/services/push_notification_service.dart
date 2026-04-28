@@ -10,6 +10,7 @@ import '../core/api/dio_client.dart';
 import '../firebase_options.dart';
 import 'notification_service.dart';
 import 'storage_service.dart';
+import 'token_service.dart';
 
 /// Top-level background handler — MUST be a top-level function (not a method).
 /// Called when the app is in the background OR terminated.
@@ -204,6 +205,13 @@ class PushNotificationService {
   /// Send the FCM token to the backend.
   static Future<void> _sendTokenToBackend(String token) async {
     try {
+      final hasToken = await TokenService.hasToken();
+      if (!hasToken) {
+        log('Skipping FCM backend registration: user is not logged in.',
+            name: 'PushNotificationService');
+        return;
+      }
+
       await DioClient.instance.put(
         ApiEndpoints.updateFcmToken,
         data: {'token': token},

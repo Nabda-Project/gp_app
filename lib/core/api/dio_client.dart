@@ -1,8 +1,11 @@
 import 'dart:developer';
 import 'package:dio/dio.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../config/api_config.dart';
 import '../../services/token_service.dart';
 import '../../services/backend_auth_service.dart';
+import '../../services/storage_service.dart';
+import '../../services/chat_service.dart';
 import '../../models/login_request.dart';
 import '../../services/notification_service.dart';
 import 'api_exceptions.dart';
@@ -43,6 +46,11 @@ class DioClient {
     _dio?.close();
     _dio = null;
   }
+
+  /// Reset the force-logout guard after a successful login.
+  static void resetForceLogoutGuard() {
+    _AuthInterceptor.resetForceLogoutGuard();
+  }
 }
 
 /// Injects the JWT `Authorization: Bearer <token>` header on every request
@@ -60,6 +68,14 @@ class _AuthInterceptor extends Interceptor {
 
   /// Guard to prevent infinite re-login loops.
   bool _isRefreshing = false;
+
+  /// Guard to prevent _forceLogoutAndRedirect from firing more than once.
+  /// Multiple concurrent 401s (patients, chats, appointments) would each
+  /// call it, causing the auth screen form to be rebuilt and cleared.
+  static bool _hasForceLoggedOut = false;
+
+  /// Reset the force-logout guard (call after a successful login).
+  static void resetForceLogoutGuard() => _hasForceLoggedOut = false;
 
   @override
   void onRequest(
@@ -85,7 +101,8 @@ class _AuthInterceptor extends Interceptor {
     // ── Auto-refresh on 401 / 403 (expired JWT) ──
     if ((statusCode == 401 || statusCode == 403) &&
         !isAuthEndpoint &&
-        !_isRefreshing) {
+        !_isRefreshing &&
+        !_hasForceLoggedOut) {
       _isRefreshing = true;
       try {
         final credentials = await TokenService.getCredentials();
@@ -119,7 +136,21 @@ class _AuthInterceptor extends Interceptor {
         }
       } catch (e) {
         log('Auto-refresh failed: $e', name: 'DioClient');
-        _forceLogoutAndRedirect();
+        if (e is UnauthorizedException || e is ForbiddenException) {
+          _forceLogoutAndRedirect();
+        } else {
+          _isRefreshing = false;
+          final apiException = _mapDioError(err);
+          return handler.reject(
+            DioException(
+              requestOptions: err.requestOptions,
+              response: err.response,
+              type: err.type,
+              error: apiException,
+              message: apiException.message,
+            ),
+          );
+        }
       } finally {
         _isRefreshing = false;
       }
@@ -139,8 +170,21 @@ class _AuthInterceptor extends Interceptor {
   }
 
   void _forceLogoutAndRedirect() {
+    // Only execute once — multiple concurrent 401s must NOT each
+    // rebuild the /auth route and clear the user's form input.
+    if (_hasForceLoggedOut) return;
+    _hasForceLoggedOut = true;
+
     log('Forcing logout and redirecting to login screen', name: 'DioClient');
-    TokenService.clearAll();
+    // Only delete the token — keep credentials so the user can auto-login
+    // next time the app starts (splash screen will call refreshBackendToken).
+    TokenService.deleteToken();
+    StorageService.logout();
+    ChatService.shutdown();
+    // Sign out of Firebase too so the splash screen doesn't find a stale
+    // Firebase user and redirect to the dashboard again (→ more 401s).
+    FirebaseAuth.instance.signOut();
+
     NotificationService.showError(
         title: 'Session Expired',
         message: 'Your session has expired. Please log in again.');
