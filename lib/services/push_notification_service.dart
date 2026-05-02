@@ -32,17 +32,17 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await localNotifications.initialize(initSettings);
 
   final data = message.data;
-  final title = data['title'] ?? 'HealthSync';
+  final title = data['title'] ?? 'NABDA';
   final rawBody = data['body'] ?? '';
 
   // Explicitly add sender name to the body content
-  final body = (title != 'HealthSync' && title.isNotEmpty) 
+  final body = (title != 'NABDA' && title.isNotEmpty) 
       ? '$title: $rawBody' 
       : rawBody;
 
   final androidDetails = AndroidNotificationDetails(
-    'healthsync_alerts_v4',
-    'HealthSync Alerts',
+    'nabda_alerts_v1',
+    'NABDA Alerts',
     channelDescription: 'Important alerts for messages, appointments, and health events',
     importance: Importance.max,
     priority: Priority.max,
@@ -58,7 +58,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     styleInformation: BigTextStyleInformation(
       body,
       contentTitle: title,
-      summaryText: 'HealthSync',
+      summaryText: 'NABDA',
     ),
   );
 
@@ -92,8 +92,8 @@ class PushNotificationService {
 
   /// New channel ID — Android caches channel settings forever, so we use a
   /// fresh ID to guarantee MAX importance + heads-up display.
-  static const String _channelId = 'healthsync_alerts_v4';
-  static const String _channelName = 'HealthSync Alerts';
+  static const String _channelId = 'nabda_alerts_v1';
+  static const String _channelName = 'NABDA Alerts';
   static const String _channelDesc =
       'Important alerts for messages, appointments, and health events';
 
@@ -228,12 +228,20 @@ class PushNotificationService {
   /// so we create a LOCAL SYSTEM notification that appears as a heads-up banner
   /// on top of whatever app is open — exactly like WhatsApp.
   static void _handleForegroundMessage(RemoteMessage message) {
+    // Check if notifications are enabled in user settings
+    final settings = StorageService.getSettings();
+    if (!settings.enableNotifications) {
+      log('FCM foreground: notifications disabled by user — suppressed',
+          name: 'PushNotificationService');
+      return;
+    }
+
     final data = message.data;
-    final title = message.notification?.title ?? data['title'] ?? 'HealthSync';
+    final title = message.notification?.title ?? data['title'] ?? 'NABDA';
     final rawBody = message.notification?.body ?? data['body'] ?? '';
     
     // Explicitly add sender name to the body content to guarantee it's visible
-    final body = (title != 'HealthSync' && title.isNotEmpty) 
+    final body = (title != 'NABDA' && title.isNotEmpty) 
         ? '$title: $rawBody' 
         : rawBody;
 
@@ -241,7 +249,7 @@ class PushNotificationService {
         name: 'PushNotificationService');
 
     // Show a real system heads-up notification (NOT an in-app toast)
-    showHeadsUpNotification(
+    _showHeadsUpNotificationInternal(
       title: title,
       body: body,
       payload: jsonEncode(data),
@@ -255,7 +263,28 @@ class PushNotificationService {
   /// notification with fullScreenIntent which triggers the heads-up display.
   ///
   /// Can be called from anywhere in the app (dashboard, chat service, etc.)
+  /// Public API — checks the notification setting before showing.
   static Future<void> showHeadsUpNotification({
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    // Check if notifications are enabled in user settings
+    final settings = StorageService.getSettings();
+    if (!settings.enableNotifications) {
+      log('Heads-up notification suppressed (disabled by user)',
+          name: 'PushNotificationService');
+      return;
+    }
+    await _showHeadsUpNotificationInternal(
+      title: title,
+      body: body,
+      payload: payload,
+    );
+  }
+
+  /// Internal implementation that always shows the notification (no settings check).
+  static Future<void> _showHeadsUpNotificationInternal({
     required String title,
     required String body,
     String? payload,
@@ -282,7 +311,7 @@ class PushNotificationService {
       styleInformation: BigTextStyleInformation(
         body,
         contentTitle: title,
-        summaryText: 'HealthSync',
+        summaryText: 'NABDA',
       ),
     );
 

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../services/storage_service.dart';
 import '../widgets/reusable/animated_toast.dart';
 
 class NotificationService {
@@ -28,7 +29,12 @@ class NotificationService {
 
   /// Show a heads-up notification with sound + haptic feedback.
   /// Used for incoming real-time events (like WhatsApp pop-up).
+  /// Respects the user's notification settings.
   static void showHeadsUp({required String title, required String message}) {
+    // Check if notifications are enabled
+    final settings = StorageService.getSettings();
+    if (!settings.enableNotifications) return;
+
     // Play notification sound + haptic
     _playNotificationAlert();
     _showToast(title: title, message: message, type: ToastType.info);
