@@ -9,7 +9,7 @@ class GeneratedLocalizationsAr extends GeneratedLocalizations {
   GeneratedLocalizationsAr([String locale = 'ar']) : super(locale);
 
   @override
-  String get appName => 'هيلث سينك';
+  String get appName => 'نبضة';
 
   @override
   String get getStarted => 'ابدأ الآن';
@@ -408,7 +408,7 @@ class GeneratedLocalizationsAr extends GeneratedLocalizations {
   String get reaction => 'رد الفعل';
 
   @override
-  String get assistantTitle => 'مساعد هيلث سينك';
+  String get assistantTitle => 'مساعد نبضة';
 
   @override
   String get typeMessage => 'اكتب أعراضك...';
@@ -418,7 +418,7 @@ class GeneratedLocalizationsAr extends GeneratedLocalizations {
 
   @override
   String get welcomeMessage =>
-      'مرحباً! أنا مساعد هيلث سينك. كيف يمكنني مساعدتك اليوم؟';
+      'مرحباً! أنا مساعد نبضة. كيف يمكنني مساعدتك اليوم؟';
 
   @override
   String get emergencyResponse =>

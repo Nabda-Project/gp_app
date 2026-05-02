@@ -25,11 +25,11 @@ void main() async {
     log("PushNotificationService Init Failed: $e", name: 'Main');
   });
   
-  runApp(const GPApp());
+  runApp(const NabdaApp());
 }
 
-class GPApp extends StatelessWidget {
-  const GPApp({super.key});
+class NabdaApp extends StatelessWidget {
+  const NabdaApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +41,7 @@ class GPApp extends StatelessWidget {
 
         return MaterialApp(
           navigatorKey: NotificationService.navigatorKey,
-          title: 'HealthSync',
+          title: 'NABDA',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
           locale: Locale(settings.languageCode),

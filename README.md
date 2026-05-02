@@ -1,6 +1,6 @@
-# HealthSync
+# NABDA
 
-**HealthSync** is a modern, connected healthcare application built with Flutter, designed to bridge the gap between patients and healthcare providers. It features distinct portals for patients and doctors, enabling real-time vitals monitoring, secure communication, and efficient medical history management.
+**NABDA** (نبضة — "Pulse") is a modern, connected healthcare application built with Flutter, designed to bridge the gap between patients and healthcare providers. It features distinct portals for patients and doctors, enabling real-time vitals monitoring, secure communication, and efficient medical history management.
 
 ## 🌟 Features
 

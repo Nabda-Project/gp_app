@@ -104,7 +104,7 @@ abstract class GeneratedLocalizations {
   /// No description provided for @appName.
   ///
   /// In en, this message translates to:
-  /// **'HealthSync'**
+  /// **'NABDA'**
   String get appName;
 
   /// No description provided for @getStarted.
@@ -140,7 +140,7 @@ abstract class GeneratedLocalizations {
   /// No description provided for @accessAccount.
   ///
   /// In en, this message translates to:
-  /// **'Access your HealthSync account'**
+  /// **'Access your NABDA account'**
   String get accessAccount;
 
   /// No description provided for @emailAddress.
@@ -890,7 +890,7 @@ abstract class GeneratedLocalizations {
   /// No description provided for @assistantTitle.
   ///
   /// In en, this message translates to:
-  /// **'HealthSync Assistant'**
+  /// **'NABDA Assistant'**
   String get assistantTitle;
 
   /// No description provided for @typeMessage.
@@ -908,7 +908,7 @@ abstract class GeneratedLocalizations {
   /// No description provided for @welcomeMessage.
   ///
   /// In en, this message translates to:
-  /// **'Hello! I\'m the HealthSync assistant. How can I help you today?'**
+  /// **'Hello! I\'m the NABDA assistant. How can I help you today?'**
   String get welcomeMessage;
 
   /// No description provided for @emergencyResponse.

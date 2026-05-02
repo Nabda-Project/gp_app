@@ -1,11 +1,11 @@
 {
-    "name": "gp_app",
-    "short_name": "gp_app",
+    "name": "NABDA",
+    "short_name": "NABDA",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "NABDA - Your Health, Your Pulse",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

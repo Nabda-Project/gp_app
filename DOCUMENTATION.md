@@ -1,7 +1,7 @@
-# HealthSync - Flutter Medical App Documentation
+# NABDA - Flutter Medical App Documentation
 
 ## 📱 Overview
-HealthSync is a Flutter-based medical application that allows patients to monitor their health, chat with doctors, and manage medical appointments. The app supports **Arabic and English** localization.
+NABDA is a Flutter-based medical application that allows patients to monitor their health, chat with doctors, and manage medical appointments. The app supports **Arabic and English** localization.
 
 ---
 

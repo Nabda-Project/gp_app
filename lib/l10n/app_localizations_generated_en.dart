@@ -9,7 +9,7 @@ class GeneratedLocalizationsEn extends GeneratedLocalizations {
   GeneratedLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appName => 'HealthSync';
+  String get appName => 'NABDA';
 
   @override
   String get getStarted => 'Get Started';
@@ -28,7 +28,7 @@ class GeneratedLocalizationsEn extends GeneratedLocalizations {
   String get createAccount => 'Create Account';
 
   @override
-  String get accessAccount => 'Access your HealthSync account';
+  String get accessAccount => 'Access your NABDA account';
 
   @override
   String get emailAddress => 'Email Address';
@@ -408,7 +408,7 @@ class GeneratedLocalizationsEn extends GeneratedLocalizations {
   String get reaction => 'Reaction';
 
   @override
-  String get assistantTitle => 'HealthSync Assistant';
+  String get assistantTitle => 'NABDA Assistant';
 
   @override
   String get typeMessage => 'Describe your symptoms...';
@@ -418,7 +418,7 @@ class GeneratedLocalizationsEn extends GeneratedLocalizations {
 
   @override
   String get welcomeMessage =>
-      'Hello! I\'m the HealthSync assistant. How can I help you today?';
+      'Hello! I\'m the NABDA assistant. How can I help you today?';
 
   @override
   String get emergencyResponse =>

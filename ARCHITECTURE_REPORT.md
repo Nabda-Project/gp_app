@@ -1,4 +1,4 @@
-# HealthSync — Architecture & Structure Report
+# NABDA — Architecture & Structure Report
 
 > **Date:** February 16, 2026  
 > **Version:** 0.1.0  
@@ -9,7 +9,7 @@
 
 ## 1. Executive Summary
 
-**HealthSync** is a cross-platform Flutter mobile application designed for real-time health monitoring and patient-doctor communication. It supports two distinct user roles — **Patient** and **Doctor** — each with dedicated dashboards and feature sets. The app uses **Firebase** for authentication and cloud data storage, **Hive** for local persistence, and a custom localization system supporting **English and Arabic**.
+**NABDA** is a cross-platform Flutter mobile application designed for real-time health monitoring and patient-doctor communication. It supports two distinct user roles — **Patient** and **Doctor** — each with dedicated dashboards and feature sets. The app uses **Firebase** for authentication and cloud data storage, **Hive** for local persistence, and a custom localization system supporting **English and Arabic**.
 
 ---
 

@@ -34,8 +34,8 @@ class AppColors {
 }
 
 class AppStrings {
-  static const String appName = "HealthSync";
-  static const String onboardingTitle = "Your Health, Synchronized";
+  static const String appName = "NABDA";
+  static const String onboardingTitle = "Your Health, Your Pulse";
   static const String onboardingDesc =
       "Connected care, real-time monitoring, and instant medical support.";
   static const String getStarted = "Get Started";
