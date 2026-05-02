@@ -22,6 +22,7 @@ import '../../utils/app_localizations.dart';
 import '../../widgets/reusable/decorated_background.dart';
 import '../../widgets/reusable/section_title.dart';
 import '../../widgets/reusable/patient_card.dart';
+import '../../widgets/reusable/user_avatar.dart';
 import '../../widgets/reusable/stat_card.dart';
 import '../../widgets/reusable/alert_card.dart';
 import '../../widgets/animations/fade_slide_transition.dart';
@@ -998,6 +999,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                           status: _priorityToStatus(patient.priority),
                           heartRate: '--',
                           lastUpdate: '',
+                          profileImageUrl: patient.profileImageUrl,
                           onTap: () {
                             Navigator.pushNamed(
                               context,
@@ -1010,6 +1012,12 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                                 'status': _priorityToStatus(patient.priority),
                                 'heartRate': '--',
                                 'lastUpdate': '',
+                                'profileImageUrl': patient.profileImageUrl,
+                                'gender': patient.gender,
+                                'dateOfBirth': patient.dateOfBirth,
+                                'height': patient.height,
+                                'weight': patient.weight,
+                                'age': patient.age,
                               },
                             ).then((result) {
                               if (_currentUser?.backendId != null) {
@@ -1035,6 +1043,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                                 'name': patient.fullName,
                                 'email': patient.email,
                                 'backendId': patient.id,
+                                'profileImageUrl': patient.profileImageUrl,
                               },
                             ).then((_) {
                               _loadChatsData(silent: true);
@@ -1234,6 +1243,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                 'name': contact.partnerName,
                 'email': contact.partnerEmail,
                 'backendId': contact.partnerId,
+                'profileImageUrl': contact.partnerProfileImageUrl,
               },
             ).then((_) {
               // Refresh chats data to update unread counts (silently)
@@ -1254,20 +1264,10 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                 // Avatar with online indicator
                 Stack(
                   children: [
-                    CircleAvatar(
+                    UserAvatar(
+                      imageUrl: contact.partnerProfileImageUrl,
+                      name: contact.partnerName,
                       radius: 26,
-                      backgroundColor:
-                          AppColors.primaryBlue.withValues(alpha: 0.1),
-                      child: Text(
-                        contact.partnerName.isNotEmpty
-                            ? contact.partnerName[0].toUpperCase()
-                            : '?',
-                        style: const TextStyle(
-                          color: AppColors.primaryBlue,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                        ),
-                      ),
                     ),
                     Positioned(
                       bottom: 0,
@@ -1541,6 +1541,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                                     heartRate: '--',
                                     lastUpdate: '',
                                     highlightText: _searchQuery,
+                                    profileImageUrl: patient.profileImageUrl,
                                     onTap: () {
                                       Navigator.pushNamed(
                                         context,
@@ -1553,6 +1554,12 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                                           'status': _priorityToStatus(patient.priority),
                                           'heartRate': '--',
                                           'lastUpdate': '',
+                                          'profileImageUrl': patient.profileImageUrl,
+                                          'gender': patient.gender,
+                                          'dateOfBirth': patient.dateOfBirth,
+                                          'height': patient.height,
+                                          'weight': patient.weight,
+                                          'age': patient.age,
                                         },
                                       ).then((result) {
                                         if (_currentUser?.backendId != null) {
@@ -1571,6 +1578,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                                           'name': patient.fullName,
                                           'email': patient.email,
                                           'backendId': patient.id,
+                                          'profileImageUrl': patient.profileImageUrl,
                                         },
                                       ).then((_) {
                                         _loadChatsData(silent: true);

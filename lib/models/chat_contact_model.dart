@@ -8,6 +8,7 @@ class ChatContactModel {
   final String lastMessage;
   final DateTime? lastMessageTimestamp;
   final int unreadCount;
+  final String? partnerProfileImageUrl;
 
   ChatContactModel({
     required this.partnerId,
@@ -16,6 +17,7 @@ class ChatContactModel {
     required this.lastMessage,
     this.lastMessageTimestamp,
     required this.unreadCount,
+    this.partnerProfileImageUrl,
   });
 
   factory ChatContactModel.fromJson(Map<String, dynamic> json) {
@@ -29,6 +31,7 @@ class ChatContactModel {
           ? DateTime.tryParse(json['lastMessageTimestamp'] as String)
           : null,
       unreadCount: json['unreadCount'] as int? ?? 0,
+      partnerProfileImageUrl: json['partnerProfileImageUrl'] as String?,
     );
   }
 }

@@ -8,6 +8,7 @@ import '../../utils/app_localizations.dart';
 import '../../services/storage_service.dart';
 import '../../services/appointment_api_service.dart';
 import '../../services/doctor_api_service.dart';
+import '../../widgets/reusable/user_avatar.dart';
 
 class PatientDetailScreen extends StatefulWidget {
   const PatientDetailScreen({super.key});
@@ -135,6 +136,11 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                   ),
                 ],
               ),
+              const SizedBox(height: AppDimensions.paddingL),
+
+              // Patient Bio Info section
+              _buildPatientBioSection(context, patient),
+              const SizedBox(height: 140), // Extra space for FABs
             ],
           ),
         ),
@@ -181,6 +187,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
     BuildContext context,
     Map<String, dynamic> patient,
   ) {
+    final loc = AppLocalizations.of(context)!;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppDimensions.paddingL),
@@ -197,17 +204,12 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
       ),
       child: Row(
         children: [
-          CircleAvatar(
+          UserAvatar(
+            imageUrl: patient['profileImageUrl'] as String?,
+            name: patient['name']?.toString(),
             radius: 35,
             backgroundColor: AppColors.primaryBlue,
-            child: Text(
-              patient['name'].toString().substring(0, 1),
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            foregroundColor: Colors.white,
           ),
           const SizedBox(width: AppDimensions.paddingM),
           Expanded(
@@ -237,13 +239,161 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      '${AppLocalizations.of(context)!.get('lastUpdate')}: ${patient['lastUpdate'] ?? 'N/A'}',
+                      '${loc.get('lastUpdate')}: ${patient['lastUpdate'] ?? 'N/A'}',
                       style: const TextStyle(
                         fontSize: 12,
                         color: AppColors.grey,
                       ),
                     ),
                   ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Builds the patient bio information section (gender, age, height, weight).
+  Widget _buildPatientBioSection(
+    BuildContext context,
+    Map<String, dynamic> patient,
+  ) {
+    final loc = AppLocalizations.of(context)!;
+    final String? gender = patient['gender'] as String?;
+    final int? age = patient['age'] as int?;
+    final double? height = patient['height'] as double?;
+    final double? weight = patient['weight'] as double?;
+    final String na = loc.get('notAvailable');
+
+    // Translate gender value
+    String genderDisplay = na;
+    if (gender != null) {
+      if (gender.toUpperCase() == 'MALE') {
+        genderDisplay = loc.get('male');
+      } else if (gender.toUpperCase() == 'FEMALE') {
+        genderDisplay = loc.get('female');
+      } else {
+        genderDisplay = gender;
+      }
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppDimensions.paddingL),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(AppDimensions.radiusM),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            loc.get('patientInfo'),
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppColors.darkBlue,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _buildInfoChip(
+                  icon: Icons.person_outline,
+                  label: loc.get('gender'),
+                  value: genderDisplay,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildInfoChip(
+                  icon: Icons.calendar_today_outlined,
+                  label: loc.get('age'),
+                  value: age != null ? '$age ${loc.get('years')}' : na,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _buildInfoChip(
+                  icon: Icons.height,
+                  label: loc.get('heightCm'),
+                  value: height != null ? '${height.toStringAsFixed(0)} cm' : na,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildInfoChip(
+                  icon: Icons.monitor_weight_outlined,
+                  label: loc.get('weightKg'),
+                  value: weight != null ? '${weight.toStringAsFixed(0)} kg' : na,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// A small info chip used to display patient bio data.
+  Widget _buildInfoChip({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.primaryBlue.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primaryBlue.withValues(alpha: 0.1), width: 1),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: AppColors.primaryBlue.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 16, color: AppColors.primaryBlue),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.grey.withValues(alpha: 0.8),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.darkBlue,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -424,19 +574,10 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
               ),
               child: Row(
                 children: [
-                  CircleAvatar(
+                  UserAvatar(
+                    imageUrl: patient['profileImageUrl'] as String?,
+                    name: patient['name']?.toString(),
                     radius: 16,
-                    backgroundColor: AppColors.primaryBlue.withValues(alpha: 0.1),
-                    child: Text(
-                      (patient['name'] ?? '?').toString().isNotEmpty
-                          ? patient['name'].toString()[0].toUpperCase()
-                          : '?',
-                      style: const TextStyle(
-                        color: AppColors.primaryBlue,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(

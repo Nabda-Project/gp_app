@@ -8,6 +8,7 @@ import '../../services/presence_service.dart';
 import '../../services/storage_service.dart';
 import '../../utils/constants.dart';
 import '../../utils/app_localizations.dart';
+import '../../widgets/reusable/user_avatar.dart';
 
 /// Patient → Doctor live chat screen.
 /// Uses [ChatService] for real-time STOMP messaging and REST-loaded history.
@@ -15,8 +16,9 @@ import '../../utils/app_localizations.dart';
 class DoctorChatScreen extends StatefulWidget {
   final String? doctorName;
   final int? doctorId;
+  final String? doctorProfileImageUrl;
 
-  const DoctorChatScreen({super.key, this.doctorName, this.doctorId});
+  const DoctorChatScreen({super.key, this.doctorName, this.doctorId, this.doctorProfileImageUrl});
 
   @override
   State<DoctorChatScreen> createState() => _DoctorChatScreenState();
@@ -265,20 +267,11 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
                       ),
                     ],
                   ),
-                  child: CircleAvatar(
+                  child: UserAvatar(
+                    imageUrl: widget.doctorProfileImageUrl,
+                    name: widget.doctorName,
                     radius: 20,
-                    backgroundColor:
-                        AppColors.primaryBlue.withValues(alpha: 0.1),
-                    child: Text(
-                      widget.doctorName?.isNotEmpty == true
-                          ? widget.doctorName![0].toUpperCase()
-                          : 'D',
-                      style: const TextStyle(
-                        color: AppColors.primaryBlue,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
+                    fallbackIcon: Icons.medical_services,
                   ),
                 ),
                 Positioned(
@@ -583,11 +576,12 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isMe) ...[
-            CircleAvatar(
+            UserAvatar(
+              imageUrl: widget.doctorProfileImageUrl,
+              name: widget.doctorName,
               radius: 12,
-              backgroundColor: AppColors.primaryBlue.withValues(alpha: 0.1),
-              child: const Icon(Icons.medical_services,
-                  size: 14, color: AppColors.primaryBlue),
+              fallbackIcon: Icons.medical_services,
+              iconSize: 14,
             ),
             const SizedBox(width: 8),
           ],

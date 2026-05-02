@@ -29,6 +29,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../widgets/reusable/dashboard_skeleton.dart';
 import '../../widgets/reusable/server_down_view.dart';
 import '../../widgets/reusable/no_internet_view.dart';
+import '../../widgets/reusable/user_avatar.dart';
 import '../../core/api/api_exceptions.dart';
 import '../../services/api_service.dart';
 
@@ -291,6 +292,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
         DoctorChatScreen(
           doctorName: _assignedDoctor?.fullName,
           doctorId: _assignedDoctor?.id,
+          doctorProfileImageUrl: _assignedDoctor?.profileImageUrl,
         ),
       const ProfileScreen(),
     ];
@@ -440,14 +442,12 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                                     color: Colors.white.withValues(alpha: 0.2),
                                     shape: BoxShape.circle,
                                   ),
-                                  child: const CircleAvatar(
+                                  child: UserAvatar(
+                                    imageUrl: _currentUser?.profileImageUrl,
+                                    name: _currentUser?.fullName,
                                     radius: 26,
                                     backgroundColor: Colors.white,
-                                    child: Icon(
-                                      Icons.person,
-                                      color: AppColors.primaryBlue,
-                                      size: 26,
-                                    ),
+                                    foregroundColor: AppColors.primaryBlue,
                                   ),
                                 ),
                                 const SizedBox(width: AppDimensions.paddingM),
@@ -699,15 +699,12 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                           shape: BoxShape.circle,
                         ),
                         child: Center(
-                          child: Text(
-                            _assignedDoctor!.fullName.isNotEmpty
-                                ? _assignedDoctor!.fullName[0].toUpperCase()
-                                : 'D',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                            ),
+                          child: UserAvatar(
+                            imageUrl: _assignedDoctor!.profileImageUrl,
+                            name: _assignedDoctor!.fullName,
+                            radius: 26,
+                            backgroundColor: Colors.white.withValues(alpha: 0.2),
+                            foregroundColor: Colors.white,
                           ),
                         ),
                       ),

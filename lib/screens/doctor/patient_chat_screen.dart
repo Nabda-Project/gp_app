@@ -8,6 +8,7 @@ import '../../services/presence_service.dart';
 import '../../services/storage_service.dart';
 import '../../utils/constants.dart';
 import '../../utils/app_localizations.dart';
+import '../../widgets/reusable/user_avatar.dart';
 
 /// Doctor → Patient live chat screen.
 /// Uses [ChatService] for real-time STOMP messaging and REST-loaded history.
@@ -36,6 +37,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
   bool _isOnline = false;
   DateTime? _lastSeen;
   Timer? _presenceTimer;
+  String? _patientProfileImageUrl;
 
   @override
   void didChangeDependencies() {
@@ -66,6 +68,8 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
     } else {
       _patientId = 0;
     }
+
+    _patientProfileImageUrl = patient['profileImageUrl'] as String?;
 
     debugPrint('PatientChatScreen: patientName=$_patientName, patientId=$_patientId');
 
@@ -282,21 +286,10 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
                       ),
                     ],
                   ),
-                  child: CircleAvatar(
+                  child: UserAvatar(
+                    imageUrl: _patientProfileImageUrl,
+                    name: _isLoading ? null : _patientName,
                     radius: 20,
-                    backgroundColor: AppColors.primaryBlue.withValues(alpha: 0.1),
-                    child: Text(
-                      _isLoading
-                          ? '…'
-                          : _patientName.isNotEmpty
-                              ? _patientName[0].toUpperCase()
-                              : 'P',
-                      style: const TextStyle(
-                        color: AppColors.primaryBlue,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
                   ),
                 ),
                 Positioned(
@@ -601,17 +594,11 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isMe) ...[
-            CircleAvatar(
+            UserAvatar(
+              imageUrl: _patientProfileImageUrl,
+              name: _patientName,
               radius: 12,
-              backgroundColor: AppColors.primaryBlue.withValues(alpha: 0.1),
-              child: Text(
-                _patientName.isNotEmpty ? _patientName[0].toUpperCase() : 'P',
-                style: const TextStyle(
-                  color: AppColors.primaryBlue,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                ),
-              ),
+              iconSize: 14,
             ),
             const SizedBox(width: 8),
           ],

@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import '../../utils/constants.dart';
 import '../../models/settings_model.dart';
 import '../../services/storage_service.dart';
-import '../../widgets/reusable/custom_button.dart';
-import '../../widgets/reusable/logout_dialog.dart';
+
 import '../../utils/app_localizations.dart';
-import '../../widgets/animations/fade_slide_transition.dart';
 import '../../widgets/animations/animated_list_item.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -111,16 +109,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 100),
-            FadeSlideTransition(
-              delay: const Duration(milliseconds: 300),
-              child: CustomButton(
-                text: AppLocalizations.of(context)!.get('logout'),
-                onPressed: () => LogoutDialog.show(context),
-                backgroundColor: AppColors.error,
-                textColor: AppColors.white,
               ),
             ),
             const SizedBox(height: 20),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../utils/constants.dart';
+import 'user_avatar.dart';
 
 class PatientCard extends StatelessWidget {
   final String name;
@@ -11,6 +12,7 @@ class PatientCard extends StatelessWidget {
   final VoidCallback? onMessageTap;
   final VoidCallback? onDeleteTap;
   final String? highlightText;
+  final String? profileImageUrl;
 
   const PatientCard({
     super.key,
@@ -23,6 +25,7 @@ class PatientCard extends StatelessWidget {
     this.onMessageTap,
     this.onDeleteTap,
     this.highlightText,
+    this.profileImageUrl,
   });
 
   Color get _statusColor {
@@ -72,16 +75,11 @@ class PatientCard extends StatelessWidget {
                   children: [
                     CircleAvatar(
                       radius: 26,
-                      backgroundColor: AppColors.primaryBlue.withValues(
-                        alpha: 0.1,
-                      ),
-                      child: Text(
-                        name.isNotEmpty ? name[0].toUpperCase() : '?',
-                        style: const TextStyle(
-                          color: AppColors.primaryBlue,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                        ),
+                      backgroundColor: Colors.transparent,
+                      child: UserAvatar(
+                        imageUrl: profileImageUrl,
+                        name: name,
+                        radius: 26,
                       ),
                     ),
                     Positioned(

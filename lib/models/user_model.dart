@@ -12,6 +12,7 @@ class UserModel {
   final String? gender;
   final double? height; // in cm
   final double? weight; // in kg
+  final String? profileImageUrl; // URL or Base64 data URI of the user's profile image
 
   UserModel({
     required this.id,
@@ -25,6 +26,7 @@ class UserModel {
     this.gender,
     this.height,
     this.weight,
+    this.profileImageUrl,
   });
 
   /// Convert to Map for Firestore
@@ -41,6 +43,7 @@ class UserModel {
       'gender': gender,
       'height': height,
       'weight': weight,
+      'profileImageUrl': profileImageUrl,
     };
   }
 
@@ -58,6 +61,7 @@ class UserModel {
       gender: map['gender'] as String?,
       height: (map['height'] as num?)?.toDouble(),
       weight: (map['weight'] as num?)?.toDouble(),
+      profileImageUrl: map['profileImageUrl'] as String?,
     );
   }
 
@@ -82,6 +86,7 @@ class UserModel {
       gender: json['gender'] as String?,
       height: (json['height'] as num?)?.toDouble(),
       weight: (json['weight'] as num?)?.toDouble(),
+      profileImageUrl: json['profileImageUrl'] as String?,
     );
   }
 
@@ -101,6 +106,7 @@ class UserModel {
     String? gender,
     double? height,
     double? weight,
+    String? profileImageUrl,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -114,6 +120,7 @@ class UserModel {
       gender: gender ?? this.gender,
       height: height ?? this.height,
       weight: weight ?? this.weight,
+      profileImageUrl: profileImageUrl ?? this.profileImageUrl,
     );
   }
 }
@@ -140,13 +147,14 @@ class UserModelAdapter extends TypeAdapter<UserModel> {
       gender: fields.containsKey(8) ? fields[8] as String? : null,
       height: fields.containsKey(9) ? (fields[9] as num?)?.toDouble() : null,
       weight: fields.containsKey(10) ? (fields[10] as num?)?.toDouble() : null,
+      profileImageUrl: fields.containsKey(11) ? fields[11] as String? : null,
     );
   }
 
   @override
   void write(BinaryWriter writer, UserModel obj) {
     writer
-      ..writeByte(11) // total number of fields
+      ..writeByte(12) // total number of fields
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -168,6 +176,8 @@ class UserModelAdapter extends TypeAdapter<UserModel> {
       ..writeByte(9)
       ..write(obj.height)
       ..writeByte(10)
-      ..write(obj.weight);
+      ..write(obj.weight)
+      ..writeByte(11)
+      ..write(obj.profileImageUrl);
   }
 }

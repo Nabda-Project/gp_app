@@ -1,7 +1,9 @@
 import 'dart:io';
+import 'dart:convert';
 import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
 import '../../utils/constants.dart';
 import '../../models/user_model.dart';
 import '../../utils/app_localizations.dart';
@@ -39,11 +41,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadProfileImage() async {
+    // First check local cache
     final box = await Hive.openBox('profileBox');
-    final path = box.get('profileImagePath') as String?;
-    if (path != null && File(path).existsSync()) {
-      setState(() => _profileImagePath = path);
+    final localPath = box.get('profileImagePath') as String?;
+    if (localPath != null && File(localPath).existsSync()) {
+      setState(() => _profileImagePath = localPath);
     }
+    // Also check backend URL from user model
+    // (the backend URL will be used as fallback when local is not available)
   }
 
   Future<void> _saveProfileImage(String path) async {
@@ -52,21 +57,71 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final fileName = 'profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
     final savedFile = await File(path).copy('${appDir.path}/$fileName');
 
+    // Save locally
     final box = await Hive.openBox('profileBox');
     await box.put('profileImagePath', savedFile.path);
     setState(() => _profileImagePath = savedFile.path);
+
+    // Upload to backend as base64 data URI
+    try {
+      final bytes = await savedFile.readAsBytes();
+      final base64Str = base64Encode(bytes);
+      final dataUri = 'data:image/jpeg;base64,$base64Str';
+
+      await UserApiService.updateProfile({'profileImageUrl': dataUri});
+
+      // Update local user model with the new image URL
+      if (_currentUser != null) {
+        final updated = _currentUser!.copyWith(profileImageUrl: dataUri);
+        StorageService.saveUser(updated);
+        setState(() => _currentUser = updated);
+      }
+      log('Profile image uploaded to backend', name: 'ProfileScreen');
+    } catch (e) {
+      log('Failed to upload profile image to backend: $e', name: 'ProfileScreen');
+    }
   }
 
   Future<void> _pickImage(ImageSource source) async {
     final picker = ImagePicker();
     final picked = await picker.pickImage(
       source: source,
-      maxWidth: 800,
-      maxHeight: 800,
-      imageQuality: 85,
+      imageQuality: 90,
     );
-    if (picked != null) {
-      await _saveProfileImage(picked.path);
+    if (picked == null) return;
+
+    // Launch cropper — WhatsApp/Facebook style circular crop
+    final cropped = await ImageCropper().cropImage(
+      sourcePath: picked.path,
+      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'تعديل الصورة',
+          toolbarColor: AppColors.primaryBlue,
+          toolbarWidgetColor: Colors.white,
+          statusBarColor: AppColors.darkBlue,
+          activeControlsWidgetColor: AppColors.accentTeal,
+          cropFrameColor: AppColors.accentTeal,
+          cropGridColor: Colors.white54,
+          backgroundColor: Colors.black,
+          initAspectRatio: CropAspectRatioPreset.square,
+          lockAspectRatio: true,
+          hideBottomControls: false,
+          cropStyle: CropStyle.circle,
+        ),
+        IOSUiSettings(
+          title: 'تعديل الصورة',
+          doneButtonTitle: 'حفظ',
+          cancelButtonTitle: 'إلغاء',
+          aspectRatioLockEnabled: true,
+          resetAspectRatioEnabled: false,
+          cropStyle: CropStyle.circle,
+        ),
+      ],
+    );
+
+    if (cropped != null) {
+      await _saveProfileImage(cropped.path);
     }
   }
 
@@ -154,6 +209,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         final box = await Hive.openBox('profileBox');
                         await box.delete('profileImagePath');
                         setState(() => _profileImagePath = null);
+                        // Also remove from backend
+                        try {
+                          await UserApiService.updateProfile({'profileImageUrl': ''});
+                          if (_currentUser != null) {
+                            final updated = _currentUser!.copyWith(profileImageUrl: '');
+                            StorageService.saveUser(updated);
+                            setState(() => _currentUser = updated);
+                          }
+                        } catch (e) {
+                          log('Failed to remove profile image from backend: $e', name: 'ProfileScreen');
+                        }
                       },
                     ),
                 ],
@@ -506,104 +572,135 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     SafeArea(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        child: Stack(
                           children: [
-                            const SizedBox(height: 16),
-                            // Profile Picture
-                            GestureDetector(
-                              onTap: _showImagePickerSheet,
-                              child: Stack(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.5,
-                                        ),
-                                        width: 3,
-                                      ),
-                                    ),
-                                    child: CircleAvatar(
-                                      radius: 50,
-                                      backgroundColor: Colors.white.withValues(
-                                        alpha: 0.2,
-                                      ),
-                                      backgroundImage:
-                                          _profileImagePath != null
-                                              ? FileImage(
-                                                File(_profileImagePath!),
-                                              )
-                                              : null,
-                                      child:
-                                          _profileImagePath == null
-                                              ? const Icon(
-                                                Icons.person,
-                                                size: 50,
-                                                color: Colors.white,
-                                              )
-                                              : null,
+                            // Logout button at top-right
+                            Positioned(
+                              top: 8,
+                              right: 0,
+                              child: Material(
+                                color: Colors.white.withValues(alpha: 0.15),
+                                shape: const CircleBorder(),
+                                child: InkWell(
+                                  onTap: () => LogoutDialog.show(context),
+                                  customBorder: const CircleBorder(),
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(10),
+                                    child: Icon(
+                                      Icons.logout_rounded,
+                                      color: Colors.white,
+                                      size: 22,
                                     ),
                                   ),
-                                  Positioned(
-                                    bottom: 0,
-                                    right: 0,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(6),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.accentTeal,
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: Colors.white,
-                                          width: 2,
+                                ),
+                              ),
+                            ),
+                            // Centered profile content
+                            Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  const SizedBox(height: 16),
+                                  // Profile Picture
+                                  GestureDetector(
+                                    onTap: _showImagePickerSheet,
+                                    child: Stack(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            border: Border.all(
+                                              color: Colors.white.withValues(
+                                                alpha: 0.5,
+                                              ),
+                                              width: 3,
+                                            ),
+                                          ),
+                                          child: CircleAvatar(
+                                            radius: 50,
+                                            backgroundColor: Colors.white.withValues(
+                                              alpha: 0.2,
+                                            ),
+                                            backgroundImage:
+                                                _profileImagePath != null
+                                                    ? FileImage(
+                                                      File(_profileImagePath!),
+                                                    )
+                                                    : null,
+                                            child:
+                                                _profileImagePath == null
+                                                    ? const Icon(
+                                                      Icons.person,
+                                                      size: 50,
+                                                      color: Colors.white,
+                                                    )
+                                                    : null,
+                                          ),
                                         ),
-                                      ),
-                                      child: const Icon(
-                                        Icons.camera_alt,
+                                        Positioned(
+                                          bottom: 0,
+                                          right: 0,
+                                          child: Container(
+                                            padding: const EdgeInsets.all(6),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.accentTeal,
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                color: Colors.white,
+                                                width: 2,
+                                              ),
+                                            ),
+                                            child: const Icon(
+                                              Icons.camera_alt,
+                                              color: Colors.white,
+                                              size: 16,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 14),
+                                  Text(
+                                    _currentUser?.fullName ?? loc.get('guestUser'),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _currentUser?.email ?? loc.get('noEmail'),
+                                    style: TextStyle(
+                                      color: Colors.white.withValues(alpha: 0.85),
+                                      fontSize: 14,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      _currentUser?.role ?? '',
+                                      style: const TextStyle(
                                         color: Colors.white,
-                                        size: 16,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                   ),
                                 ],
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            Text(
-                              _currentUser?.fullName ?? loc.get('guestUser'),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _currentUser?.email ?? loc.get('noEmail'),
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.85),
-                                fontSize: 14,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                _currentUser?.role ?? '',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
                               ),
                             ),
                           ],
