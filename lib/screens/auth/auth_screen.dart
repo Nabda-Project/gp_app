@@ -40,6 +40,10 @@ class _AuthScreenState extends State<AuthScreen>
   DateTime? _registerDateOfBirth;
   String? _registerGender;
 
+  bool _isLoginPasswordVisible = false;
+  bool _isRegisterPasswordVisible = false;
+  bool _isConfirmPasswordVisible = false;
+
   @override
   void initState() {
     super.initState();
@@ -548,7 +552,18 @@ class _AuthScreenState extends State<AuthScreen>
             _buildTextField(
               AppLocalizations.of(context)!.get('password'),
               Icons.lock,
-              isPassword: true,
+              obscureText: !_isLoginPasswordVisible,
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _isLoginPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                  color: AppColors.grey,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _isLoginPasswordVisible = !_isLoginPasswordVisible;
+                  });
+                },
+              ),
               controller: _loginPasswordController,
               validator: (value) {
                 if (value == null || value.isEmpty) {
@@ -733,7 +748,18 @@ class _AuthScreenState extends State<AuthScreen>
             _buildTextField(
               AppLocalizations.of(context)!.get('password'),
               Icons.lock,
-              isPassword: true,
+              obscureText: !_isRegisterPasswordVisible,
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _isRegisterPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                  color: AppColors.grey,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _isRegisterPasswordVisible = !_isRegisterPasswordVisible;
+                  });
+                },
+              ),
               controller: _passwordController,
               validator: (value) {
                 if (value == null || value.isEmpty) {
@@ -749,7 +775,18 @@ class _AuthScreenState extends State<AuthScreen>
             _buildTextField(
               AppLocalizations.of(context)!.get('confirmPassword'),
               Icons.lock,
-              isPassword: true,
+              obscureText: !_isConfirmPasswordVisible,
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _isConfirmPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                  color: AppColors.grey,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
+                  });
+                },
+              ),
               controller: _confirmPasswordController,
               validator: (value) {
                 if (value == null || value.isEmpty) {
@@ -888,20 +925,22 @@ class _AuthScreenState extends State<AuthScreen>
   Widget _buildTextField(
     String label,
     IconData icon, {
-    bool isPassword = false,
+    bool obscureText = false,
+    Widget? suffixIcon,
     TextEditingController? controller,
     String? Function(String?)? validator,
     TextInputType? keyboardType,
   }) {
     return TextFormField(
       controller: controller,
-      obscureText: isPassword,
+      obscureText: obscureText,
       validator: validator,
       keyboardType: keyboardType,
       autovalidateMode: AutovalidateMode.onUserInteraction,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, color: AppColors.primaryBlue),
+        suffixIcon: suffixIcon,
         filled: true,
         fillColor: const Color(0xFFF5F7FA),
         border: OutlineInputBorder(

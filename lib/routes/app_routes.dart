@@ -14,8 +14,13 @@ import '../screens/doctor/doctor_dashboard_screen.dart';
 import '../screens/doctor/patient_detail_screen.dart';
 import '../screens/doctor/patient_chat_screen.dart';
 import '../screens/doctor/doctor_appointments_screen.dart';
+import '../screens/doctor/patient_vitals_screen.dart';
 import '../screens/role_selection/role_selection_screen.dart';
 import 'app_page_route.dart';
+import '../features/ai_assessment/screens/assessment_welcome_screen.dart';
+import '../features/ai_assessment/screens/assessment_flow_screen.dart';
+import '../features/ai_assessment/screens/review_screen.dart';
+import '../features/ai_assessment/screens/report_history_screen.dart';
 
 class AppRoutes {
   static const String splash = '/';
@@ -35,6 +40,12 @@ class AppRoutes {
   static const String doctorAppointments = '/doctor_appointments';
   static const String roleSelection = '/role_selection';
   static const String medicalHistory = '/medical_history';
+  static const String patientVitals = '/patient_vitals';
+  // AI Assessment routes
+  static const String assessmentWelcome = '/assessment_welcome';
+  static const String assessmentFlow = '/assessment_flow';
+  static const String assessmentReview = '/assessment_review';
+  static const String reportHistory = '/report_history';
 
   // Keep routes map for initial route
   static Map<String, WidgetBuilder> get routes => {
@@ -97,6 +108,21 @@ class AppRoutes {
         break;
       case medicalHistory:
         page = const MedicalHistoryScreen();
+        break;
+      case patientVitals:
+        page = const PatientVitalsScreen();
+        break;
+      case assessmentWelcome:
+        page = const AssessmentWelcomeScreen();
+        break;
+      case assessmentFlow:
+        page = const AssessmentFlowScreen();
+        break;
+      case assessmentReview:
+        page = const ReviewScreen();
+        break;
+      case reportHistory:
+        page = const ReportHistoryScreen();
         break;
     }
 

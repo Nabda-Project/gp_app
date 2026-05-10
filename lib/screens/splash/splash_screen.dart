@@ -1,13 +1,17 @@
 import 'dart:developer';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../utils/constants.dart';
 import '../../widgets/reusable/app_logo.dart';
+import '../../widgets/reusable/no_internet_view.dart';
+import '../../widgets/reusable/server_down_view.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/storage_service.dart';
 import '../../services/firestore_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/token_service.dart';
+import '../../services/api_service.dart';
 import '../onboarding/onboarding_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -39,6 +43,10 @@ class _SplashScreenState extends State<SplashScreen>
   late AnimationController _pulseRingController;
   late Animation<double> _pulseRingScale;
   late Animation<double> _pulseRingOpacity;
+
+  // ─── Network gate state ───
+  /// null = still in splash animation, 'noInternet' or 'serverDown' = blocked
+  String? _networkBlock;
 
   @override
   void initState() {
@@ -184,6 +192,37 @@ class _SplashScreenState extends State<SplashScreen>
         return;
       }
 
+      // ── Connectivity + Server Gate ──────────────────────────────────────
+      // For authenticated users, verify we can reach the backend before
+      // allowing navigation to the dashboard.
+      final connectivityResult = await Connectivity().checkConnectivity();
+      final isDisconnected = connectivityResult.isEmpty ||
+          (connectivityResult.contains(ConnectivityResult.none) &&
+           !connectivityResult.contains(ConnectivityResult.wifi) &&
+           !connectivityResult.contains(ConnectivityResult.mobile) &&
+           !connectivityResult.contains(ConnectivityResult.ethernet));
+
+      if (isDisconnected) {
+        log('No internet connection – blocking navigation', name: 'SplashScreen');
+        if (mounted) setState(() => _networkBlock = 'noInternet');
+        return;
+      }
+
+      // Check if server is reachable
+      try {
+        final check = await ApiService.testConnection();
+        if (check.contains('Error') || check.contains('Exception')) {
+          log('Server unreachable – blocking navigation', name: 'SplashScreen');
+          if (mounted) setState(() => _networkBlock = 'serverDown');
+          return;
+        }
+      } catch (_) {
+        log('Server unreachable (exception) – blocking navigation', name: 'SplashScreen');
+        if (mounted) setState(() => _networkBlock = 'serverDown');
+        return;
+      }
+      // ── End connectivity gate ──────────────────────────────────────────
+
       // Proactively refresh the back-end JWT so the first API call won't 401.
       // This handles the common case where the token expired while the app was closed.
       try {
@@ -202,7 +241,24 @@ class _SplashScreenState extends State<SplashScreen>
           if (user.role == 'Doctor') {
             Navigator.pushReplacementNamed(context, '/doctor_dashboard');
           } else {
-            Navigator.pushReplacementNamed(context, '/patient_dashboard');
+            // ── First-time profile guard ─────────────────────────────────
+            // If essential profile fields are missing, the patient hasn't
+            // completed the initial setup.  Redirect to the AI assessment
+            // welcome screen so they complete the intake first.
+            //
+            // TODO(backend): Replace this local heuristic with a dedicated
+            //   backend flag (e.g. `user.hasCompletedInitialAssessment`)
+            //   once the backend supports it.
+            final profileIncomplete = user.dateOfBirth == null ||
+                user.gender == null ||
+                user.height == null ||
+                user.weight == null;
+
+            if (profileIncomplete) {
+              Navigator.pushReplacementNamed(context, '/assessment_welcome');
+            } else {
+              Navigator.pushReplacementNamed(context, '/patient_dashboard');
+            }
           }
         } else {
           // Logged in but no profile -> Role Selection
@@ -226,6 +282,31 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    // ── Network block screens (shown INSTEAD of splash when gate fails) ──
+    if (_networkBlock == 'noInternet') {
+      return const NoInternetView();
+    }
+    if (_networkBlock == 'serverDown') {
+      return Scaffold(
+        body: ServerDownView(
+          onRefresh: () async {
+            try {
+              final result = await ApiService.testConnection();
+              if (result.contains('Error') || result.contains('Exception')) return false;
+              // Server is back — restart the navigation flow
+              if (mounted) {
+                setState(() => _networkBlock = null);
+                _navigateToNext();
+              }
+              return true;
+            } catch (_) {
+              return false;
+            }
+          },
+        ),
+      );
+    }
+
     return Scaffold(
       body: Container(
         width: double.infinity,

@@ -40,15 +40,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
+  /// Per-user Hive key for profile image path.
+  String get _profileKey => 'profileImagePath_${_currentUser?.backendId ?? 'unknown'}';
+
   Future<void> _loadProfileImage() async {
-    // First check local cache
     final box = await Hive.openBox('profileBox');
-    final localPath = box.get('profileImagePath') as String?;
+    // Use a user-scoped key so different users don't share the same cached image
+    final localPath = box.get(_profileKey) as String?;
     if (localPath != null && File(localPath).existsSync()) {
       setState(() => _profileImagePath = localPath);
+      return;
     }
-    // Also check backend URL from user model
-    // (the backend URL will be used as fallback when local is not available)
+    // Fallback: if the user model has a backend profileImageUrl (base64 data URI
+    // or network URL), decode and cache it locally so the avatar shows correctly.
+    final backendUrl = _currentUser?.profileImageUrl;
+    if (backendUrl != null && backendUrl.isNotEmpty && backendUrl.startsWith('data:image')) {
+      try {
+        final base64Str = backendUrl.split(',').last;
+        final bytes = base64Decode(base64Str);
+        final appDir = await getApplicationDocumentsDirectory();
+        final file = File('${appDir.path}/profile_${_currentUser!.backendId}.jpg');
+        await file.writeAsBytes(bytes);
+        await box.put(_profileKey, file.path);
+        if (mounted) setState(() => _profileImagePath = file.path);
+      } catch (e) {
+        log('Failed to decode backend profile image: $e', name: 'ProfileScreen');
+      }
+    }
   }
 
   Future<void> _saveProfileImage(String path) async {
@@ -57,9 +75,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final fileName = 'profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
     final savedFile = await File(path).copy('${appDir.path}/$fileName');
 
-    // Save locally
+    // Save locally with user-scoped key
     final box = await Hive.openBox('profileBox');
-    await box.put('profileImagePath', savedFile.path);
+    await box.put(_profileKey, savedFile.path);
     setState(() => _profileImagePath = savedFile.path);
 
     // Upload to backend as base64 data URI
@@ -207,7 +225,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onTap: () async {
                         Navigator.pop(ctx);
                         final box = await Hive.openBox('profileBox');
-                        await box.delete('profileImagePath');
+                        await box.delete(_profileKey);
                         setState(() => _profileImagePath = null);
                         // Also remove from backend
                         try {

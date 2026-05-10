@@ -6,6 +6,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'services/storage_service.dart';
 import 'services/notification_service.dart';
+import 'services/health_monitor_service.dart';
 import 'services/push_notification_service.dart';
 import 'models/settings_model.dart';
 import 'utils/app_localizations.dart';
@@ -19,6 +20,12 @@ void main() async {
     await StorageService.init();
   } catch (e) {
     log("StorageService Init Failed: $e", name: 'Main');
+  }
+  // Initialize the foreground health-monitor service (registers with Android, does NOT start it)
+  try {
+    await HealthMonitorService.initialize();
+  } catch (e) {
+    log("HealthMonitorService Init Failed: $e", name: 'Main');
   }
   // Initialize push notifications (FCM + local notifications) asynchronously so it doesn't block runApp
   PushNotificationService.initialize().catchError((e) {
