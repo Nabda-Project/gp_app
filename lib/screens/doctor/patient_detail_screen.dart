@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'dart:developer';
 import '../../utils/constants.dart';
 import '../../widgets/reusable/vital_card.dart';
@@ -8,6 +9,9 @@ import '../../utils/app_localizations.dart';
 import '../../services/storage_service.dart';
 import '../../services/appointment_api_service.dart';
 import '../../services/doctor_api_service.dart';
+import '../../services/iot_api_service.dart';
+import '../../services/chat_service.dart';
+import '../../models/health_metric_model.dart';
 import '../../widgets/reusable/user_avatar.dart';
 
 class PatientDetailScreen extends StatefulWidget {
@@ -18,6 +22,72 @@ class PatientDetailScreen extends StatefulWidget {
 }
 
 class _PatientDetailScreenState extends State<PatientDetailScreen> {
+  HealthMetricModel? _latestMetric;
+  bool _loadingVitals = true;
+  StreamSubscription<Map<String, dynamic>>? _vitalsSub;
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_loadingVitals) {
+      final patient =
+          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ??
+              {};
+      final int patientId = patient['backendId'] ??
+          int.tryParse(patient['id']?.toString() ?? '') ??
+          0;
+      if (patientId > 0) {
+        _fetchLatestVitals(patientId);
+        _subscribeToVitals(patientId);
+      } else {
+        setState(() => _loadingVitals = false);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _vitalsSub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _fetchLatestVitals(int patientId) async {
+    try {
+      final metric = await IoTApiService.getLatest(patientId);
+      if (mounted) {
+        setState(() {
+          _latestMetric = metric;
+          _loadingVitals = false;
+        });
+      }
+    } catch (e) {
+      log('Failed to fetch latest vitals: $e', name: 'PatientDetail');
+      if (mounted) setState(() => _loadingVitals = false);
+    }
+  }
+
+  void _subscribeToVitals(int patientId) {
+    _vitalsSub = ChatService.instance?.vitalsUpdates.listen((data) {
+      final pid = data['patientId'];
+      if (pid != null && pid == patientId && mounted) {
+        setState(() {
+          _latestMetric = HealthMetricModel(
+            id: data['metricId'] as int? ?? 0,
+            heartRate: (data['heartRate'] as num?)?.toDouble(),
+            spo2: (data['spo2'] as num?)?.toDouble(),
+            batteryLevel: data['batteryLevel'] as int?,
+            isCritical: data['isCritical'] as bool? ?? false,
+          );
+        });
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final patient =
@@ -77,23 +147,57 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
               // Health Status Card
               StatusCard(
                 title: AppLocalizations.of(context)!.get('currentHealthStatus'),
-                status: patient['status'] ?? 'Normal',
-                isHealthy: patient['status'] == 'Normal',
+                status: _latestMetric?.healthStatus ?? patient['status'] ?? 'UNKNOWN',
+                healthStatus: _latestMetric?.healthStatus ?? 'UNKNOWN',
               ),
               const SizedBox(height: AppDimensions.paddingL),
 
-              // Vitals Grid
-              Text(
-                AppLocalizations.of(context)!.get('vitals'),
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.darkBlue,
-                ),
+              // Vitals Header with "View Charts" button
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    AppLocalizations.of(context)!.get('vitals'),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.darkBlue,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pushNamed(context, '/patient_vitals', arguments: {
+                        'patientId': patient['backendId'] ??
+                            int.tryParse(patient['id']?.toString() ?? ''),
+                        'name': patient['name'] ?? 'Patient',
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryBlue.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppColors.primaryBlue.withValues(alpha: 0.3)),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.show_chart, size: 16, color: AppColors.primaryBlue),
+                          SizedBox(width: 4),
+                          Text('View Charts',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primaryBlue)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: AppDimensions.paddingM),
 
-              // Vitals Grid - mock data (Bluetooth smartwatch integration pending)
+              // Vitals Grid — real data from backend
               GridView.count(
                 crossAxisCount: 2,
                 shrinkWrap: true,
@@ -104,7 +208,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                 children: [
                   VitalCard(
                     label: AppLocalizations.of(context)!.get('heartRate'),
-                    value: '--',
+                    value: _latestMetric?.heartRateDisplay ?? '--',
                     unit: 'bpm',
                     icon: Icons.favorite,
                     color: Colors.redAccent,
@@ -112,7 +216,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                   ),
                   VitalCard(
                     label: AppLocalizations.of(context)!.get('bloodOxygen'),
-                    value: '--',
+                    value: _latestMetric?.spo2Display ?? '--',
                     unit: '%',
                     icon: Icons.water_drop,
                     color: Colors.lightBlue,
@@ -120,7 +224,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                   ),
                   VitalCard(
                     label: AppLocalizations.of(context)!.get('batteryLevel'),
-                    value: '--',
+                    value: _latestMetric?.batteryLevelDisplay ?? '--',
                     unit: '%',
                     icon: Icons.battery_charging_full,
                     color: Colors.green,

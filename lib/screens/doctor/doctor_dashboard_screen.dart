@@ -70,6 +70,10 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
   AppNetworkState _networkState = AppNetworkState.checking;
   int _unreadNotifCount = 0;
 
+  // Live vitals from WebSocket — maps patientId to latest HR string
+  final Map<int, String> _liveHeartRates = {};
+  StreamSubscription<Map<String, dynamic>>? _vitalsSubscription;
+
   @override
   void initState() {
     super.initState();
@@ -86,6 +90,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
     _chatMessageSubscription?.cancel();
     _systemEventSubscription?.cancel();
     _connectivitySubscription?.cancel();
+    _vitalsSubscription?.cancel();
     super.dispose();
   }
 
@@ -204,6 +209,40 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
       _fetchPatients(user.backendId!);
       _fetchAppointments(user.backendId!);
       _loadChatsData();
+
+      // Subscribe to live vitals updates
+      _vitalsSubscription = ChatService.instance?.vitalsUpdates.listen((data) {
+        final pid = data['patientId'] as int?;
+        final hr = data['heartRate'];
+        final priority = data['priority'] as String?;
+        final healthStatus = data['healthStatus'] as String?;
+        if (pid != null && hr != null && mounted) {
+          setState(() {
+            _liveHeartRates[pid] = (hr as num).toStringAsFixed(0);
+            
+            // Also update the patient's status and priority dynamically
+            final index = _patients.indexWhere((p) => p.id == pid);
+            if (index != -1 && (priority != null || healthStatus != null)) {
+              final oldP = _patients[index];
+              _patients[index] = PatientResponseModel(
+                id: oldP.id,
+                fullName: oldP.fullName,
+                email: oldP.email,
+                priority: priority ?? oldP.priority,
+                healthStatus: healthStatus ?? oldP.healthStatus,
+                profileImageUrl: oldP.profileImageUrl,
+                gender: oldP.gender,
+                dateOfBirth: oldP.dateOfBirth,
+                height: oldP.height,
+                weight: oldP.weight,
+              );
+              // Re-sort list by priority if you want them to jump up automatically,
+              // but doing it inline might confuse the doctor while looking at the list.
+              // For now, just update the visual status in place.
+            }
+          });
+        }
+      });
     } else {
       setState(() {
         _isLoadingPatients = false;
@@ -500,10 +539,16 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
   /// Determine display status from priority
   String _priorityToStatus(String priority) {
     switch (priority.toUpperCase()) {
+      case 'CRITICAL':
+        return 'Critical';
       case 'HIGH':
         return 'Critical';
       case 'MEDIUM':
         return 'Warning';
+      case 'NORMAL':
+        return 'Normal';
+      case 'LOW':
+        return 'Normal';
       default:
         return 'Normal';
     }
@@ -997,7 +1042,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                           name: patient.fullName,
                           email: patient.email,
                           status: _priorityToStatus(patient.priority),
-                          heartRate: '--',
+                          heartRate: _liveHeartRates[patient.id] ?? '--',
                           lastUpdate: '',
                           profileImageUrl: patient.profileImageUrl,
                           onTap: () {
@@ -1538,7 +1583,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                                     name: patient.fullName,
                                     email: patient.email,
                                     status: _priorityToStatus(patient.priority),
-                                    heartRate: '--',
+                                    heartRate: _liveHeartRates[patient.id] ?? '--',
                                     lastUpdate: '',
                                     highlightText: _searchQuery,
                                     profileImageUrl: patient.profileImageUrl,
@@ -1552,7 +1597,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                                           'name': patient.fullName,
                                           'email': patient.email,
                                           'status': _priorityToStatus(patient.priority),
-                                          'heartRate': '--',
+                                          'heartRate': _liveHeartRates[patient.id] ?? '--',
                                           'lastUpdate': '',
                                           'profileImageUrl': patient.profileImageUrl,
                                           'gender': patient.gender,

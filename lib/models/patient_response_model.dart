@@ -5,6 +5,8 @@ class PatientResponseModel {
   final String fullName;
   final String email;
   final String priority;
+  /// Patient-facing health status computed by backend (CRITICAL, WARNING, NORMAL, UNKNOWN).
+  final String healthStatus;
   final String? profileImageUrl;
   final String? gender;
   final String? dateOfBirth;
@@ -16,6 +18,7 @@ class PatientResponseModel {
     required this.fullName,
     required this.email,
     required this.priority,
+    this.healthStatus = 'UNKNOWN',
     this.profileImageUrl,
     this.gender,
     this.dateOfBirth,
@@ -29,6 +32,7 @@ class PatientResponseModel {
       fullName: json['fullName'] as String? ?? '',
       email: json['email'] as String? ?? '',
       priority: json['priority'] as String? ?? 'MEDIUM',
+      healthStatus: json['healthStatus'] as String? ?? 'UNKNOWN',
       profileImageUrl: json['profileImageUrl'] as String?,
       gender: json['gender'] as String?,
       dateOfBirth: json['dateOfBirth'] as String?,

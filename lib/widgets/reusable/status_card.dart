@@ -4,18 +4,22 @@ import '../../utils/constants.dart';
 
 /// Animated StatusCard with a pulsing glow effect.
 ///
-/// OLD VERSION (before animation update) was a static card with
-/// a colored left border. See git history for original implementation.
+/// Supports four health states driven by backend [healthStatus]:
+/// - **CRITICAL** – red accent, warning icon
+/// - **WARNING** – orange accent, warning icon
+/// - **NORMAL** – green accent, check icon
+/// - **UNKNOWN** – grey accent, help icon
 class StatusCard extends StatefulWidget {
   final String title;
   final String status;
-  final bool isHealthy;
+  /// One of: CRITICAL, WARNING, NORMAL, UNKNOWN (case-insensitive).
+  final String healthStatus;
 
   const StatusCard({
     super.key,
     required this.title,
     required this.status,
-    this.isHealthy = true,
+    this.healthStatus = 'NORMAL',
   });
 
   @override
@@ -41,15 +45,47 @@ class _StatusCardState extends State<StatusCard>
     super.dispose();
   }
 
+  Color _accentColor() {
+    switch (widget.healthStatus.toUpperCase()) {
+      case 'CRITICAL':
+        return const Color(0xFFD32F2F);
+      case 'WARNING':
+        return Colors.orange;
+      case 'NORMAL':
+        return const Color(0xFF00C853);
+      case 'UNKNOWN':
+      default:
+        return AppColors.grey;
+    }
+  }
+
+  IconData _statusIcon() {
+    switch (widget.healthStatus.toUpperCase()) {
+      case 'CRITICAL':
+        return Icons.error_rounded;
+      case 'WARNING':
+        return Icons.warning_rounded;
+      case 'NORMAL':
+        return Icons.check_circle;
+      case 'UNKNOWN':
+      default:
+        return Icons.help_outline_rounded;
+    }
+  }
+
+  bool get _isHealthy => widget.healthStatus.toUpperCase() == 'NORMAL';
+  bool get _isUnknown => widget.healthStatus.toUpperCase() == 'UNKNOWN';
+
   @override
   Widget build(BuildContext context) {
-    final Color accentColor =
-        widget.isHealthy ? const Color(0xFF00C853) : Colors.orange;
+    final Color accentColor = _accentColor();
 
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
-        final glowOpacity = 0.10 + 0.08 * sin(_controller.value * 2 * pi);
+        final glowOpacity = _isUnknown
+            ? 0.05
+            : 0.10 + 0.08 * sin(_controller.value * 2 * pi);
         return Container(
           width: double.infinity,
           decoration: BoxDecoration(
@@ -68,15 +104,16 @@ class _StatusCardState extends State<StatusCard>
             child: Stack(
               children: [
                 // Animated background pattern
-                Positioned.fill(
-                  child: CustomPaint(
-                    painter: _StatusBgPainter(
-                      progress: _controller.value,
-                      color: accentColor,
-                      isHealthy: widget.isHealthy,
+                if (!_isUnknown)
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: _StatusBgPainter(
+                        progress: _controller.value,
+                        color: accentColor,
+                        isHealthy: _isHealthy,
+                      ),
                     ),
                   ),
-                ),
                 // Colored left border
                 Container(
                   decoration: BoxDecoration(
@@ -91,20 +128,23 @@ class _StatusCardState extends State<StatusCard>
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: accentColor.withValues(alpha: 0.1 + 0.05 * sin(_controller.value * 2 * pi)),
+                          color: accentColor.withValues(
+                              alpha: _isUnknown
+                                  ? 0.08
+                                  : 0.1 + 0.05 * sin(_controller.value * 2 * pi)),
                           shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: accentColor.withValues(alpha: glowOpacity * 0.4),
-                              blurRadius: 12,
-                              spreadRadius: 0,
-                            ),
-                          ],
+                          boxShadow: _isUnknown
+                              ? null
+                              : [
+                                  BoxShadow(
+                                    color: accentColor.withValues(alpha: glowOpacity * 0.4),
+                                    blurRadius: 12,
+                                    spreadRadius: 0,
+                                  ),
+                                ],
                         ),
                         child: Icon(
-                          widget.isHealthy
-                              ? Icons.check_circle
-                              : Icons.warning_rounded,
+                          _statusIcon(),
                           color: accentColor,
                           size: 28,
                         ),
@@ -172,7 +212,7 @@ class _StatusBgPainter extends CustomPainter {
         );
       canvas.drawCircle(Offset(sweepX, size.height * 0.5), 60, paint);
     } else {
-      // Warning: subtle pulsing rings
+      // Warning/Critical: subtle pulsing rings
       final center = Offset(size.width * 0.85, size.height * 0.5);
       for (int i = 0; i < 3; i++) {
         final adjustedProgress = (progress + i * 0.33) % 1.0;
