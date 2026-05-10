@@ -12,6 +12,9 @@ import '../models/chat_message_model.dart';
 import 'presence_service.dart';
 import 'token_service.dart';
 
+/// Connection state of the underlying WebSocket / STOMP transport.
+enum WebSocketState { connected, disconnected, reconnecting }
+
 /// Global singleton that manages the STOMP WebSocket connection for real-time
 /// chat, status updates, and system events (e.g. patient assignment).
 ///
@@ -60,7 +63,13 @@ class ChatService {
   final _messageController = StreamController<ChatMessageModel>.broadcast();
   final _statusController = StreamController<Map<String, dynamic>>.broadcast();
   final _systemController = StreamController<Map<String, dynamic>>.broadcast();
+  final _vitalsController = StreamController<Map<String, dynamic>>.broadcast();
+  final _connectionStateController = StreamController<WebSocketState>.broadcast();
   Completer<void>? _connectCompleter;
+
+  /// Current WebSocket connection state.
+  WebSocketState _wsState = WebSocketState.disconnected;
+  WebSocketState get wsState => _wsState;
 
   /// Stream of incoming real-time messages.
   Stream<ChatMessageModel> get messages => _messageController.stream;
@@ -71,8 +80,24 @@ class ChatService {
   /// Stream of system events (e.g. patient assignment notifications).
   Stream<Map<String, dynamic>> get systemEvents => _systemController.stream;
 
+  /// Stream of live vitals updates from patients (for doctor dashboard).
+  Stream<Map<String, dynamic>> get vitalsUpdates => _vitalsController.stream;
+
+  /// Stream of WebSocket connection state changes.
+  Stream<WebSocketState> get connectionState => _connectionStateController.stream;
+
   /// Whether the STOMP client is currently connected.
   bool get isConnected => _stompClient?.connected ?? false;
+
+  void _setWsState(WebSocketState state) {
+    if (_wsState != state) {
+      _wsState = state;
+      if (!_connectionStateController.isClosed) {
+        _connectionStateController.add(state);
+      }
+      log('ChatService: WebSocket state → $state', name: 'ChatService');
+    }
+  }
 
   /// Connect to the WebSocket and subscribe to the user's queues.
   Future<void> connect() async {
@@ -82,10 +107,12 @@ class ChatService {
     if (token == null || token.isEmpty) {
       log('ChatService: No JWT token available, cannot connect.',
           name: 'ChatService');
+      _setWsState(WebSocketState.disconnected);
       return;
     }
 
     _connectCompleter = Completer<void>();
+    _setWsState(WebSocketState.reconnecting);
 
     _stompClient = StompClient(
       config: StompConfig.sockJS(
@@ -100,12 +127,14 @@ class ChatService {
         onDisconnect: _onDisconnect,
         onWebSocketError: (error) {
           log('WebSocket error: $error', name: 'ChatService');
+          _setWsState(WebSocketState.disconnected);
           if (_connectCompleter != null && !_connectCompleter!.isCompleted) {
             _connectCompleter!.complete();
           }
         },
         onStompError: (frame) {
           log('STOMP error: ${frame.body}', name: 'ChatService');
+          _setWsState(WebSocketState.disconnected);
           if (_connectCompleter != null && !_connectCompleter!.isCompleted) {
             _connectCompleter!.complete();
           }
@@ -128,6 +157,7 @@ class ChatService {
 
   void _onConnect(StompFrame frame) {
     log('ChatService: Connected to WebSocket!', name: 'ChatService');
+    _setWsState(WebSocketState.connected);
 
     // Start presence heartbeat so this user is shown as online globally
     PresenceService.startHeartbeat();
@@ -197,6 +227,26 @@ class ChatService {
       },
     );
 
+    // Subscribe to live vitals updates (doctor sees patient readings in real-time)
+    final vitalsDest = '/topic/vitals/$currentUserId';
+    log('ChatService: Subscribing to $vitalsDest', name: 'ChatService');
+    _stompClient!.subscribe(
+      destination: vitalsDest,
+      callback: (StompFrame frame) {
+        if (frame.body != null) {
+          try {
+            final json = jsonDecode(frame.body!) as Map<String, dynamic>;
+            _vitalsController.add(json);
+            log('ChatService: Received vitals update for patient ${json["patientId"]}',
+                name: 'ChatService');
+          } catch (e) {
+            log('ChatService: Failed to parse vitals update: $e',
+                name: 'ChatService');
+          }
+        }
+      },
+    );
+
     // Complete the connect future
     if (_connectCompleter != null && !_connectCompleter!.isCompleted) {
       _connectCompleter!.complete();
@@ -205,7 +255,16 @@ class ChatService {
 
   void _onDisconnect(StompFrame frame) {
     log('ChatService: Disconnected from WebSocket.', name: 'ChatService');
+    _setWsState(WebSocketState.disconnected);
     PresenceService.stopHeartbeat();
+    // The STOMP client's built-in reconnectDelay will fire automatically.
+    // When it starts reconnecting, we'll transition to reconnecting
+    // via the next connect attempt.
+    Future.delayed(const Duration(seconds: 3), () {
+      if (_wsState == WebSocketState.disconnected && _stompClient != null) {
+        _setWsState(WebSocketState.reconnecting);
+      }
+    });
   }
 
   /// Send a chat message to the specified receiver.
@@ -332,6 +391,7 @@ class ChatService {
   void disconnect() {
     _stompClient?.deactivate();
     _stompClient = null;
+    _setWsState(WebSocketState.disconnected);
     log('ChatService: Deactivated.', name: 'ChatService');
   }
 
@@ -341,5 +401,7 @@ class ChatService {
     _messageController.close();
     _statusController.close();
     _systemController.close();
+    _vitalsController.close();
+    _connectionStateController.close();
   }
 }

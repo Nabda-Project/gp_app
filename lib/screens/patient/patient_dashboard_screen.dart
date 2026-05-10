@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:developer';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../utils/constants.dart';
 import '../../widgets/reusable/status_card.dart';
 import '../../widgets/reusable/vital_card.dart';
@@ -32,6 +34,13 @@ import '../../widgets/reusable/no_internet_view.dart';
 import '../../widgets/reusable/user_avatar.dart';
 import '../../core/api/api_exceptions.dart';
 import '../../services/api_service.dart';
+import '../../services/health_monitor_service.dart';
+import '../../services/iot_api_service.dart';
+import '../../models/device_reading.dart';
+import '../../models/health_metric_model.dart';
+import '../../services/token_service.dart';
+import '../../core/config/api_config.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
 
 enum AppNetworkState { checking, normal, noInternet, serverDown }
 
@@ -57,11 +66,95 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
   int _unreadChatCount = 0;
   int _unreadNotifCount = 0;
 
+  // ── Device integration state (now driven by HealthMonitorService) ──
+  StreamSubscription<Map<String, dynamic>?>? _serviceReadingSub;
+  StreamSubscription<Map<String, dynamic>?>? _serviceStatusSub;
+  StreamSubscription<Map<String, dynamic>?>? _serviceMetricSub;
+  DeviceReading? _latestReading;
+  HealthMetricModel? _latestMetric;
+  bool _deviceConnected = false;
+  /// True when the foreground service is running (may or may not have readings).
+  bool _serviceRunning = false;
+
   @override
   void initState() {
     super.initState();
     _initConnectivity();
     _loadUser();
+    _restoreServiceState();
+  }
+
+  /// On app launch / resume, check if the foreground service is already
+  /// running and subscribe to its IPC streams.
+  Future<void> _restoreServiceState() async {
+    final running = await HealthMonitorService.isRunning();
+    if (running) {
+      log('Service already running — restoring UI state', name: 'PatientDashboard');
+      _subscribeToService();
+      if (mounted) setState(() => _serviceRunning = true);
+    }
+  }
+
+  /// Subscribe to the background service IPC streams.
+  void _subscribeToService() {
+    _serviceReadingSub?.cancel();
+    _serviceStatusSub?.cancel();
+    _serviceMetricSub?.cancel();
+
+    _serviceReadingSub = HealthMonitorService.on.listen((data) {
+      if (data == null || !mounted) return;
+      final connected = data['connected'] as bool? ?? false;
+      if (connected) {
+        final reading = DeviceReading(
+          heartRate: (data['hr'] as num?)?.toDouble() ?? 0,
+          spo2: (data['spo2'] as num?)?.toDouble() ?? 0,
+          batteryLevel: (data['battery'] as num?)?.toInt() ?? 0,
+          timestamp: DateTime.tryParse(data['timestamp'] ?? '') ?? DateTime.now(),
+        );
+        setState(() {
+          _latestReading = reading;
+          _deviceConnected = true;
+        });
+      } else {
+        setState(() {
+          _deviceConnected = false;
+          _latestReading = null;
+        });
+      }
+    });
+
+    _serviceStatusSub = HealthMonitorService.onStatus.listen((data) {
+      if (data == null || !mounted) return;
+      final status = data['status'] as String?;
+      if (status == 'authError') {
+        log('Service reported auth error', name: 'PatientDashboard');
+        setState(() {
+          _serviceRunning = false;
+          _deviceConnected = false;
+          _latestReading = null;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Login required — health monitoring paused'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+      }
+    });
+
+    // Listen for metric responses from backend uploads.
+    _serviceMetricSub = FlutterBackgroundService().on('metricUpdate').listen((data) {
+      if (data == null || !mounted) return;
+      try {
+        final metric = HealthMetricModel.fromJson(data);
+        setState(() => _latestMetric = metric);
+      } catch (e) {
+        log('Could not parse metricUpdate: $e', name: 'PatientDashboard');
+      }
+    });
   }
 
   void _initConnectivity() async {
@@ -114,8 +207,262 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     _connectivitySubscription?.cancel();
     _systemEventSubscription?.cancel();
     _chatMessageSubscription?.cancel();
+    _serviceReadingSub?.cancel();
+    _serviceStatusSub?.cancel();
+    _serviceMetricSub?.cancel();
     _pageController.dispose();
     super.dispose();
+  }
+
+  // ── Device Integration Methods ──────────────────────────────────────────
+
+  void _showConnectDeviceSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.grey.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryBlue.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.watch, size: 48, color: AppColors.primaryBlue),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Connect Nabda Device',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.darkBlue),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF5F7FA),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildStep('1', 'Enable your phone\'s Mobile Hotspot'),
+                    const SizedBox(height: 10),
+                    _buildStep('2', 'Set hotspot name to: nabda'),
+                    const SizedBox(height: 10),
+                    _buildStep('3', 'Set password to: 12345678'),
+                    const SizedBox(height: 10),
+                    _buildStep('4', 'Power on your Nabda device'),
+                    const SizedBox(height: 10),
+                    _buildStep('5', 'Wait for the device LED to stop blinking'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: AppColors.primaryGradient,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _connectDevice();
+                    },
+                    icon: const Icon(Icons.wifi_tethering, color: Colors.white),
+                    label: const Text('Start Listening', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStep(String number, String text) {
+    return Row(
+      children: [
+        Container(
+          width: 28, height: 28,
+          decoration: BoxDecoration(
+            color: AppColors.primaryBlue,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Center(child: Text(number, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14))),
+        ),
+        const SizedBox(width: 12),
+        Expanded(child: Text(text, style: const TextStyle(fontSize: 14, color: AppColors.darkBlue))),
+      ],
+    );
+  }
+
+  /// Starts the foreground health-monitoring service.
+  /// The service owns the UDP socket and backend uploads.
+  Future<void> _connectDevice() async {
+    final patientId = _currentUser?.backendId;
+    if (patientId == null) {
+      log('Cannot start service — no backendId', name: 'PatientDashboard');
+      return;
+    }
+
+    // Check if already running.
+    if (await HealthMonitorService.isRunning()) {
+      log('Service already running — subscribing to updates',
+          name: 'PatientDashboard');
+      _subscribeToService();
+      if (mounted) setState(() => _serviceRunning = true);
+      return;
+    }
+
+    final token = await TokenService.getToken();
+    if (token == null || token.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Login required to start health monitoring'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+      }
+      return;
+    }
+
+    try {
+      final started = await HealthMonitorService.start(
+        patientId: patientId,
+        token: token,
+        baseUrl: ApiConfig.baseUrl,
+      );
+
+      if (started) {
+        _subscribeToService();
+        if (mounted) setState(() => _serviceRunning = true);
+        log('Foreground service started', name: 'PatientDashboard');
+
+        // Show battery optimization dialog on first start.
+        _maybeShowBatteryOptDialog();
+      }
+    } catch (e) {
+      log('Failed to start foreground service: $e', name: 'PatientDashboard');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Failed to start health monitoring service'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+      }
+    }
+  }
+
+  /// Stops the foreground service and cleans up UI state.
+  Future<void> _disconnectDevice() async {
+    await HealthMonitorService.stop();
+    _serviceReadingSub?.cancel();
+    _serviceStatusSub?.cancel();
+    _serviceMetricSub?.cancel();
+    _serviceReadingSub = null;
+    _serviceStatusSub = null;
+    _serviceMetricSub = null;
+    if (mounted) {
+      setState(() {
+        _serviceRunning = false;
+        _deviceConnected = false;
+        _latestReading = null;
+      });
+    }
+    log('Foreground service stopped', name: 'PatientDashboard');
+  }
+
+  /// Show battery optimization exemption dialog once (first time only).
+  Future<void> _maybeShowBatteryOptDialog() async {
+    final prefs = await SharedPreferences.getInstance();
+    final alreadyAsked = prefs.getBool('bg_battery_opt_asked') ?? false;
+    if (alreadyAsked || !mounted) return;
+
+    await prefs.setBool('bg_battery_opt_asked', true);
+
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.battery_saver, color: AppColors.primaryBlue),
+            SizedBox(width: 8),
+            Expanded(child: Text('Battery Optimization', style: TextStyle(fontSize: 18))),
+          ],
+        ),
+        content: const Text(
+          'For continuous health monitoring while the screen is off, '
+          'please allow the battery optimization exception.\n\n'
+          'Some devices may stop the monitoring service without this permission.',
+          style: TextStyle(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Not now'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _requestBatteryOptimizationExemption();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryBlue,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Allow', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Open system battery optimization settings for this app.
+  Future<void> _requestBatteryOptimizationExemption() async {
+    try {
+      // Use Android's built-in intent to request ignoring battery optimizations.
+      // android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS
+      const channel = MethodChannel('com.example.gp_app/battery');
+      await channel.invokeMethod('requestBatteryOptimization');
+    } catch (e) {
+      log('Could not open battery optimization settings: $e',
+          name: 'PatientDashboard');
+      // The dialog itself already informed the user about manual steps.
+    }
   }
 
   Future<void> _loadUser() async {
@@ -202,8 +549,24 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
 
     await Future.wait([
       _fetchAssignedDoctor(user),
-      _fetchNextAppointment(user)
+      _fetchNextAppointment(user),
+      _fetchLatestMetric(user!.backendId),
     ]);
+
+    // NOTE: Service is NOT auto-started here.
+    // It starts only when the user taps "Start Listening".
+    // If the service is already running (from a previous session),
+    // _restoreServiceState() handles re-subscribing to it.
+  }
+
+  Future<void> _fetchLatestMetric(int? backendId) async {
+    if (backendId == null) return;
+    try {
+      final metric = await IoTApiService.getLatest(backendId);
+      if (mounted) setState(() => _latestMetric = metric);
+    } catch (e) {
+      log('Could not load latest metric: $e', name: 'PatientDashboard');
+    }
   }
 
   Future<void> _fetchNextAppointment(UserModel? user) async {
@@ -339,7 +702,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
               ? null
               : FloatingActionButton(
                 onPressed: () {
-                  Navigator.pushNamed(context, '/chatbot');
+                  Navigator.pushNamed(context, '/assessment_welcome');
                 },
                 backgroundColor: AppColors.primaryBlue,
                 child: const FaIcon(
@@ -559,20 +922,108 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                       delay: const Duration(milliseconds: 100),
                       child: StatusCard(
                         title: AppLocalizations.of(context)!.get('currentHealthStatus'),
-                        status: 'Normal',
-                        isHealthy: true,
+                        status: _latestMetric?.healthStatus ?? 'UNKNOWN',
+                        healthStatus: _latestMetric?.healthStatus ?? 'UNKNOWN',
                       ),
                     ),
                     const SizedBox(height: AppDimensions.paddingL),
                     FadeSlideTransition(
                       delay: const Duration(milliseconds: 200),
-                      child: SectionTitle(
-                        title: AppLocalizations.of(context)!.get('vitals'),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              SectionTitle(
+                                title: AppLocalizations.of(context)!.get('vitals'),
+                              ),
+                              const SizedBox(width: 8),
+                              GestureDetector(
+                                onTap: () {
+                                  if (_currentUser?.backendId != null) {
+                                    Navigator.pushNamed(context, '/patient_vitals', arguments: {
+                                      'patientId': _currentUser!.backendId,
+                                      'name': 'My Vitals',
+                                    });
+                                  }
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primaryBlue.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(color: AppColors.primaryBlue.withValues(alpha: 0.3)),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.show_chart, size: 14, color: AppColors.primaryBlue),
+                                      SizedBox(width: 4),
+                                      Text('View Charts',
+                                          style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppColors.primaryBlue)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          // Connect / Disconnect device button
+                          GestureDetector(
+                            onTap: (_serviceRunning || _deviceConnected) ? _disconnectDevice : _showConnectDeviceSheet,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: (_serviceRunning || _deviceConnected)
+                                    ? AppColors.accentTeal.withValues(alpha: 0.1)
+                                    : AppColors.primaryBlue.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: (_serviceRunning || _deviceConnected) ? AppColors.accentTeal : AppColors.primaryBlue,
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    (_serviceRunning || _deviceConnected) ? Icons.wifi : Icons.wifi_off,
+                                    size: 16,
+                                    color: (_serviceRunning || _deviceConnected) ? AppColors.accentTeal : AppColors.primaryBlue,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _serviceRunning
+                                        ? (_deviceConnected ? 'Listening' : 'Waiting…')
+                                        : 'Start Listener',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: (_serviceRunning || _deviceConnected) ? AppColors.accentTeal : AppColors.primaryBlue,
+                                    ),
+                                  ),
+                                  if (_serviceRunning && _deviceConnected && _latestReading != null) ...[
+                                    const SizedBox(width: 4),
+                                    Container(
+                                      width: 6, height: 6,
+                                      decoration: const BoxDecoration(
+                                        color: Colors.green,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: AppDimensions.paddingM),
 
-                    // Vitals Grid – mock data (Bluetooth smartwatch pending)
+                    // Vitals Grid – live data from Nabda device
                     GridView.count(
                       crossAxisCount: 2,
                       shrinkWrap: true,
@@ -585,7 +1036,9 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                           index: 0,
                           child: VitalCard(
                             label: AppLocalizations.of(context)!.get('heartRate'),
-                            value: '--',
+                            value: _latestReading != null
+                                ? _latestReading!.heartRate.toStringAsFixed(0)
+                                : '--',
                             unit: "bpm",
                             icon: Icons.favorite,
                             color: Colors.redAccent,
@@ -595,7 +1048,9 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                           index: 1,
                           child: VitalCard(
                             label: AppLocalizations.of(context)!.get('bloodOxygen'),
-                            value: '--',
+                            value: _latestReading != null
+                                ? _latestReading!.spo2.toStringAsFixed(0)
+                                : '--',
                             unit: "%",
                             icon: Icons.water_drop,
                             color: Colors.lightBlue,
@@ -605,7 +1060,9 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                           index: 2,
                           child: VitalCard(
                             label: AppLocalizations.of(context)!.get('batteryLevel'),
-                            value: '--',
+                            value: _latestReading != null
+                                ? '${_latestReading!.batteryLevel}'
+                                : '--',
                             unit: "%",
                             icon: Icons.battery_charging_full,
                             color: Colors.green,
@@ -629,7 +1086,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 80), // Padding to prevent floating action button overlapping Next Follow-Up widget
+                    const SizedBox(height: 80), // Padding to prevent floating action button overlapping
                   ],
                 ),
               ),
