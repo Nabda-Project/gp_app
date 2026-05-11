@@ -61,6 +61,15 @@ final List<AssessmentQuestion> historyQuestions = [
     ],
   ),
   const AssessmentQuestion(
+    field: 'history.known_cardiac_other',
+    question: 'ما هو التشخيص الآخر؟',
+    type: QuestionType.text,
+    dependsOn: DependsOn(
+      field: 'history.known_cardiac',
+      containsAny: ['other'],
+    ),
+  ),
+  const AssessmentQuestion(
     field: 'history.prior_workup',
     question: 'هل قمت سابقاً بأي من الفحوصات التالية للقلب؟ (يمكنك اختيار أكثر من إجابة)',
     type: QuestionType.multiChoice,

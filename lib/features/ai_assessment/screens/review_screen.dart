@@ -248,6 +248,7 @@ class ReviewScreen extends StatelessWidget {
     }
 
     addItem('التشخيصات القلبية السابقة', history['known_cardiac']);
+    addItem('تشخيص آخر (تفصيل)', history['known_cardiac_other']);
     addItem('فحوصات القلب السابقة', history['prior_workup']);
     addItem('الحالات المزمنة', history['chronic_conditions']);
     addItem('الأدوية', history['medications']);

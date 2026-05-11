@@ -1,11 +1,10 @@
 import 'dart:async';
 import 'dart:developer';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../../services/storage_service.dart';
 import '../data/ai_assessment_api.dart';
-import '../models/assessment_models.dart';
 import '../widgets/assessment_theme.dart';
+import 'report_result_screen.dart';
 
 class ReportLoadingScreen extends StatefulWidget {
   final Map<String, dynamic> submissionJson;
@@ -73,9 +72,20 @@ class _ReportLoadingScreenState extends State<ReportLoadingScreen>
     final patientId = user?.backendId;
 
     if (patientId == null) {
+      // TODO: Remove debug log before production
+      log(
+        'AI_ASSESSMENT_ERROR — patientId is null, user: ${user?.email}',
+        name: 'AI_ASSESSMENT_DEBUG',
+      );
       setState(() => _errorMessage = 'تعذّر تحديد هوية المريض. يرجى تسجيل الدخول مجدداً.');
       return;
     }
+
+    // TODO: Remove debug log before production
+    log(
+      'AI_ASSESSMENT_SUBMIT — patientId: $patientId, endpoint: /ai/consult/$patientId',
+      name: 'AI_ASSESSMENT_DEBUG',
+    );
 
     try {
       final result = await AiAssessmentApiService.submitAssessment(
@@ -83,23 +93,28 @@ class _ReportLoadingScreenState extends State<ReportLoadingScreen>
         assessmentData: widget.submissionJson,
       );
 
-      // Log the merged response from backend
+      // TODO: Remove debug log before production
       log(
-        'AI_ASSESSMENT_MERGED_FROM_BACKEND — patientId: ${result.patientId}, '
-        'demographics: ${result.demographics}',
-        name: 'AiAssessmentApi',
+        'AI_ASSESSMENT_SUCCESS — id: ${result.id}, patientId: ${result.patientId}, '
+        'aiReport.length: ${result.aiReport.length}',
+        name: 'AI_ASSESSMENT_DEBUG',
       );
 
       if (!mounted) return;
 
-      // Navigate to success screen showing demographics were merged
+      // Navigate to report result screen
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => _AssessmentSuccessScreen(mergedResponse: result),
+          builder: (_) => ReportResultScreen(report: result),
         ),
       );
     } catch (e) {
+      // TODO: Remove debug log before production
+      log(
+        'AI_ASSESSMENT_ERROR — $e',
+        name: 'AI_ASSESSMENT_DEBUG',
+      );
       if (!mounted) return;
       setState(() => _errorMessage = 'عذراً، حدث خطأ في الخادم. يرجى المحاولة لاحقاً.');
     }
@@ -284,217 +299,6 @@ class _ReportLoadingScreenState extends State<ReportLoadingScreen>
                 ),
               ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Success screen (assessment received, demographics merged) ────────────────
-
-class _AssessmentSuccessScreen extends StatelessWidget {
-  final ChatbotMergedResponse mergedResponse;
-
-  const _AssessmentSuccessScreen({required this.mergedResponse});
-
-  @override
-  Widget build(BuildContext context) {
-    final demographics = mergedResponse.demographics;
-
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        body: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xFFF0F5FF), Color(0xFFE8F0FF), Colors.white],
-            ),
-          ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 28),
-              child: Column(
-                children: [
-                  const Spacer(flex: 2),
-                  // Success icon
-                  Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      gradient: AssessmentColors.cardGradient,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: AssessmentColors.primary.withOpacity(0.3),
-                          blurRadius: 40,
-                          offset: const Offset(0, 12),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(Icons.check_rounded,
-                        color: Colors.white, size: 60),
-                  ),
-                  const SizedBox(height: 32),
-                  const Text(
-                    'تم إرسال التقييم بنجاح',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Cairo',
-                      color: AssessmentColors.textPrimary,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'تم دمج بياناتك الديموغرافية من الملف الشخصي',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontFamily: 'Cairo',
-                      color: AssessmentColors.textSecondary,
-                      height: 1.6,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 24),
-                  // Demographics card
-                  if (demographics.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: AssessmentShadows.card,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.person_outline_rounded,
-                                  color: AssessmentColors.primary, size: 20),
-                              const SizedBox(width: 8),
-                              const Text(
-                                'البيانات الديموغرافية من الملف',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  fontFamily: 'Cairo',
-                                  color: AssessmentColors.primary,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          if (demographics['age'] != null)
-                            _infoRow('العمر', '${demographics['age']} سنة'),
-                          if (demographics['sex'] != null)
-                            _infoRow('الجنس',
-                                demographics['sex'] == 'male' ? 'ذكر' : 'أنثى'),
-                          if (demographics['height_cm'] != null)
-                            _infoRow('الطول', '${demographics['height_cm']} سم'),
-                          if (demographics['weight_kg'] != null)
-                            _infoRow('الوزن', '${demographics['weight_kg']} كجم'),
-                        ],
-                      ),
-                    ),
-                  const Spacer(flex: 2),
-                  // Disclaimer
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AssessmentColors.warning.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.info_outline_rounded,
-                            color: AssessmentColors.warning.withOpacity(0.8),
-                            size: 18),
-                        const SizedBox(width: 8),
-                        const Expanded(
-                          child: Text(
-                            'سيتم إنشاء التقرير الطبي الذكي قريباً',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AssessmentColors.textSecondary,
-                              fontFamily: 'Cairo',
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Actions
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () => Navigator.pushNamedAndRemoveUntil(
-                          context, '/patient_dashboard', (route) => false),
-                      icon: const Icon(Icons.home_rounded),
-                      label: const Text('العودة للرئيسية',
-                          style: TextStyle(fontFamily: 'Cairo', fontSize: 16)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AssessmentColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16)),
-                        elevation: 0,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () =>
-                          Navigator.pushNamed(context, '/assessment_welcome'),
-                      icon: const Icon(Icons.replay_rounded),
-                      label: const Text('تقييم جديد',
-                          style: TextStyle(fontFamily: 'Cairo', fontSize: 16)),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AssessmentColors.primary,
-                        side: const BorderSide(color: AssessmentColors.primary),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _infoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Text(
-            '$label: ',
-            style: const TextStyle(
-                fontSize: 13,
-                fontFamily: 'Cairo',
-                fontWeight: FontWeight.w600,
-                color: AssessmentColors.textSecondary),
-          ),
-          Text(
-            value,
-            style: const TextStyle(
-                fontSize: 13,
-                fontFamily: 'Cairo',
-                color: AssessmentColors.textPrimary),
           ),
         ],
       ),
