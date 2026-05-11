@@ -75,6 +75,7 @@ class UdpDeviceService {
             final datagram = _socket?.receive();
             if (datagram != null) {
               final message = String.fromCharCodes(datagram.data).trim();
+              log('UDP received: $message', name: 'UdpDeviceService');
               _handlePacket(message);
             }
           }
@@ -106,33 +107,25 @@ class UdpDeviceService {
   ///   `MAX30105_reading: 97.50 | PULSE_reading: 72.30 | Batt: 200`
   void _handlePacket(String message) {
     try {
-      // Split by ' | ' to get the three segments
-      final parts = message.split('|').map((s) => s.trim()).toList();
-      if (parts.length < 3) {
-        log('Malformed packet (expected 3 parts): $message',
-            name: 'UdpDeviceService');
+      final maxRegex = RegExp(r'MAX30105_reading:\s*([\d.]+)');
+      final pulseRegex = RegExp(r'PULSE_reading:\s*([\d.]+)');
+      final battRegex = RegExp(r'Batt:\s*(\d+)');
+
+      final maxMatch = maxRegex.firstMatch(message);
+      final pulseMatch = pulseRegex.firstMatch(message);
+      final battMatch = battRegex.firstMatch(message);
+
+      if (maxMatch == null || pulseMatch == null || battMatch == null) {
+        log('Could not parse all fields from: $message', name: 'UdpDeviceService');
         return;
       }
 
-      double? max30105Reading; // MAX30105 HR (mapped to spo2 field — NOT real SpO2)
-      double? pulseReading; // Heart Rate from Pulse Sensor
-      int? battRaw;
+      final max30105Reading = double.tryParse(maxMatch.group(1)!);
+      final pulseReading = double.tryParse(pulseMatch.group(1)!);
+      final battRaw = int.tryParse(battMatch.group(1)!);
 
-      for (final part in parts) {
-        if (part.startsWith('MAX30105_reading:')) {
-          max30105Reading =
-              double.tryParse(part.replaceFirst('MAX30105_reading:', '').trim());
-        } else if (part.startsWith('PULSE_reading:')) {
-          pulseReading =
-              double.tryParse(part.replaceFirst('PULSE_reading:', '').trim());
-        } else if (part.startsWith('Batt:')) {
-          battRaw = int.tryParse(part.replaceFirst('Batt:', '').trim());
-        }
-      }
-
-      if (pulseReading == null || max30105Reading == null || battRaw == null) {
-        log('Could not parse all fields from: $message',
-            name: 'UdpDeviceService');
+      if (max30105Reading == null || pulseReading == null || battRaw == null) {
+        log('Could not parse numeric values from: $message', name: 'UdpDeviceService');
         return;
       }
 

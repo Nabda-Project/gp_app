@@ -19,12 +19,14 @@ import '../models/device_reading.dart';
 /// Notification channel for the persistent foreground service notification.
 const String _kServiceChannelId = 'nabda_health_monitor';
 const String _kServiceChannelName = 'Health Monitor';
-const String _kServiceChannelDesc = 'Ongoing notification for health monitoring service';
+const String _kServiceChannelDesc =
+    'Ongoing notification for health monitoring service';
 
 /// Notification channel for critical health alerts.
 const String _kCriticalChannelId = 'nabda_critical_alerts';
 const String _kCriticalChannelName = 'Critical Health Alerts';
-const String _kCriticalChannelDesc = 'Urgent notifications for abnormal vital signs';
+const String _kCriticalChannelDesc =
+    'Urgent notifications for abnormal vital signs';
 
 /// Fixed notification ID for the ongoing service notification.
 const int _kServiceNotificationId = 888;
@@ -34,7 +36,6 @@ const int _kUdpPort = 4210;
 
 /// How often to upload latest reading to backend (seconds).
 const int _kUploadIntervalSec = 1;
-
 
 /// Device considered disconnected after this many seconds without packets.
 const int _kDisconnectTimeoutSec = 5;
@@ -115,9 +116,11 @@ class HealthMonitorService {
       enableLights: true,
     );
 
-    final androidPlugin = flutterLocalNotificationsPlugin
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
+    final androidPlugin =
+        flutterLocalNotificationsPlugin
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >();
 
     await androidPlugin?.createNotificationChannel(serviceChannel);
     await androidPlugin?.createNotificationChannel(criticalChannel);
@@ -141,8 +144,10 @@ class HealthMonitorService {
       ),
     );
 
-    log('HealthMonitorService initialized (not started)',
-        name: 'HealthMonitorService');
+    log(
+      'HealthMonitorService initialized (not started)',
+      name: 'HealthMonitorService',
+    );
   }
 
   /// Start the foreground service.
@@ -170,7 +175,10 @@ class HealthMonitorService {
 
     final isRunning = await _service.isRunning();
     if (isRunning) {
-      log('Service already running — skipping start', name: 'HealthMonitorService');
+      log(
+        'Service already running — skipping start',
+        name: 'HealthMonitorService',
+      );
       return true;
     }
 
@@ -232,8 +240,10 @@ void _onStart(ServiceInstance service) async {
   final baseUrl = prefs.getString(_kPrefBaseUrl);
 
   if (patientId == null || baseUrl == null) {
-    log('ERROR: Missing patientId or baseUrl — stopping service',
-        name: 'BgService');
+    log(
+      'ERROR: Missing patientId or baseUrl — stopping service',
+      name: 'BgService',
+    );
     _updateNotification(service, 'Health Monitor', 'Error: login required');
     service.invoke('statusUpdate', {'status': 'authError'});
     await Future.delayed(const Duration(seconds: 2));
@@ -253,8 +263,10 @@ void _onStart(ServiceInstance service) async {
     return;
   }
 
-  log('Config loaded: patientId=$patientId, baseUrl=$baseUrl',
-      name: 'BgService');
+  log(
+    'Config loaded: patientId=$patientId, baseUrl=$baseUrl',
+    name: 'BgService',
+  );
 
   // ── State variables ───────────────────────────────────────────────────────
   DeviceReading? latestReading;
@@ -266,17 +278,19 @@ void _onStart(ServiceInstance service) async {
   final Map<String, DateTime> criticalCooldowns = {};
 
   // ── Create Dio instance for this isolate ──────────────────────────────────
-  final dio = Dio(BaseOptions(
-    baseUrl: baseUrl,
-    connectTimeout: const Duration(seconds: 15),
-    receiveTimeout: const Duration(seconds: 15),
-    sendTimeout: const Duration(seconds: 15),
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'Authorization': 'Bearer $token',
-    },
-  ));
+  final dio = Dio(
+    BaseOptions(
+      baseUrl: baseUrl,
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 15),
+      sendTimeout: const Duration(seconds: 15),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    ),
+  );
 
   // ── Local notifications plugin for critical alerts ────────────────────────
   final localNotifications = FlutterLocalNotificationsPlugin();
@@ -296,7 +310,10 @@ void _onStart(ServiceInstance service) async {
     log('UDP socket bound on port $_kUdpPort', name: 'BgService');
 
     _updateNotification(
-        service, 'Health Monitor Running', 'Listening for Nabda device…');
+      service,
+      'Health Monitor Running',
+      'Listening for Nabda device…',
+    );
 
     udpSocket.listen(
       (RawSocketEvent event) {
@@ -304,13 +321,17 @@ void _onStart(ServiceInstance service) async {
           final datagram = udpSocket?.receive();
           if (datagram != null) {
             final message = String.fromCharCodes(datagram.data).trim();
+            log('UDP received: $message', name: 'BgService');
             final reading = _parsePacket(message);
             if (reading != null) {
               latestReading = reading;
               lastPacketTime = DateTime.now();
               if (!deviceConnected) {
                 deviceConnected = true;
-                log('Device connected', name: 'BgService');
+                log(
+                  'Device connected. First reading: HR=${reading.heartRate}, SpO2=${reading.spo2}',
+                  name: 'BgService',
+                );
               }
 
               // Send to UI immediately.
@@ -323,15 +344,14 @@ void _onStart(ServiceInstance service) async {
               });
 
               // Update notification with latest values.
-              _updateNotification(service, 'Health Monitor Running',
-                  'HR ${reading.heartRate.toStringAsFixed(0)} • SpO₂ ${reading.spo2.toStringAsFixed(0)}%  • Batt ${reading.batteryLevel}%');
+              _updateNotification(
+                service,
+                'Health Monitor Running',
+                'HR ${reading.heartRate.toStringAsFixed(0)} • SpO₂ ${reading.spo2.toStringAsFixed(0)}%  • Batt ${reading.batteryLevel}%',
+              );
 
               // ── Check for critical values ──
-              _checkCritical(
-                reading,
-                localNotifications,
-                criticalCooldowns,
-              );
+              _checkCritical(reading, localNotifications, criticalCooldowns);
             }
           }
         }
@@ -346,7 +366,10 @@ void _onStart(ServiceInstance service) async {
   } catch (e) {
     log('Failed to bind UDP socket: $e', name: 'BgService');
     _updateNotification(
-        service, 'Health Monitor', 'Error: could not start listener');
+      service,
+      'Health Monitor',
+      'Error: could not start listener',
+    );
     service.invoke('statusUpdate', {'status': 'udpError', 'message': '$e'});
     await Future.delayed(const Duration(seconds: 2));
     service.stopSelf();
@@ -359,10 +382,15 @@ void _onStart(ServiceInstance service) async {
       final elapsed = DateTime.now().difference(lastPacketTime!).inSeconds;
       if (elapsed >= _kDisconnectTimeoutSec && deviceConnected) {
         deviceConnected = false;
-        log('Device disconnected (no packets for ${elapsed}s)',
-            name: 'BgService');
+        log(
+          'Device disconnected (no packets for ${elapsed}s)',
+          name: 'BgService',
+        );
         _updateNotification(
-            service, 'Health Monitor Running', 'Device disconnected');
+          service,
+          'Health Monitor Running',
+          'Device disconnected',
+        );
         service.invoke('updateReading', {
           'hr': 0.0,
           'spo2': 0.0,
@@ -395,22 +423,21 @@ void _onStart(ServiceInstance service) async {
           'batteryLevel': reading.batteryLevel,
         },
       );
-      log('Uploaded reading (status=${response.statusCode})',
-          name: 'BgService');
+      log(
+        'Uploaded reading (status=${response.statusCode})',
+        name: 'BgService',
+      );
 
       // ── Push backend response to UI immediately ──────────────────────
       if (response.data != null && response.data is Map) {
-        service.invoke(
-            'metricUpdate', response.data as Map<String, dynamic>);
+        service.invoke('metricUpdate', response.data as Map<String, dynamic>);
       }
     } on DioException catch (e) {
       final statusCode = e.response?.statusCode;
-      log('Upload failed: status=$statusCode, ${e.message}',
-          name: 'BgService');
+      log('Upload failed: status=$statusCode, ${e.message}', name: 'BgService');
 
       if (statusCode == 401 || statusCode == 403) {
-        final refreshed =
-            await _tryRefreshToken(dio, secureStorage, baseUrl);
+        final refreshed = await _tryRefreshToken(dio, secureStorage, baseUrl);
         if (refreshed) {
           final newToken = await secureStorage.read(key: _kSecureTokenKey);
           if (newToken != null) {
@@ -421,14 +448,19 @@ void _onStart(ServiceInstance service) async {
         } else {
           authError = true;
           _updateNotification(
-              service, 'Health Monitor', 'Login required — upload paused');
+            service,
+            'Health Monitor',
+            'Login required — upload paused',
+          );
           service.invoke('statusUpdate', {'status': 'authError'});
           log('Auth failed — uploads paused', name: 'BgService');
         }
       } else {
         // Non-auth error — notify UI that server may be unreachable.
-        service.invoke(
-            'statusUpdate', {'status': 'uploadError', 'code': statusCode ?? 0});
+        service.invoke('statusUpdate', {
+          'status': 'uploadError',
+          'code': statusCode ?? 0,
+        });
       }
     } catch (e) {
       log('Upload error: $e', name: 'BgService');
@@ -473,30 +505,25 @@ void _updateNotification(ServiceInstance service, String title, String body) {
 ///   percentage = ((voltage - 3.0) / 1.2 * 100).clamp(0, 100)
 DeviceReading? _parsePacket(String message) {
   try {
-    final parts = message.split('|').map((s) => s.trim()).toList();
-    if (parts.length < 3) {
-      log('Malformed packet (expected 3 parts): $message', name: 'BgService');
+    final maxRegex = RegExp(r'MAX30105_reading:\s*([\d.]+)');
+    final pulseRegex = RegExp(r'PULSE_reading:\s*([\d.]+)');
+    final battRegex = RegExp(r'Batt:\s*(\d+)');
+
+    final maxMatch = maxRegex.firstMatch(message);
+    final pulseMatch = pulseRegex.firstMatch(message);
+    final battMatch = battRegex.firstMatch(message);
+
+    if (maxMatch == null || pulseMatch == null || battMatch == null) {
+      log('Could not parse all fields from: $message', name: 'BgService');
       return null;
     }
 
-    double? max30105Reading;
-    double? pulseReading;
-    int? battRaw;
+    final max30105Reading = double.tryParse(maxMatch.group(1)!);
+    final pulseReading = double.tryParse(pulseMatch.group(1)!);
+    final battRaw = int.tryParse(battMatch.group(1)!);
 
-    for (final part in parts) {
-      if (part.startsWith('MAX30105_reading:')) {
-        max30105Reading =
-            double.tryParse(part.replaceFirst('MAX30105_reading:', '').trim());
-      } else if (part.startsWith('PULSE_reading:')) {
-        pulseReading =
-            double.tryParse(part.replaceFirst('PULSE_reading:', '').trim());
-      } else if (part.startsWith('Batt:')) {
-        battRaw = int.tryParse(part.replaceFirst('Batt:', '').trim());
-      }
-    }
-
-    if (pulseReading == null || max30105Reading == null || battRaw == null) {
-      log('Could not parse all fields from: $message', name: 'BgService');
+    if (max30105Reading == null || pulseReading == null || battRaw == null) {
+      log('Could not parse numeric values from: $message', name: 'BgService');
       return null;
     }
 
@@ -509,12 +536,17 @@ DeviceReading? _parsePacket(String message) {
 
     // ── Validation ──
     if (pulseReading < _kHrMinValid || pulseReading > _kHrMaxValid) {
-      log('HR out of valid range ($pulseReading) — discarding', name: 'BgService');
+      log(
+        'HR out of valid range ($pulseReading) — discarding',
+        name: 'BgService',
+      );
       return null;
     }
     if (max30105Reading < _kSpo2MinValid || max30105Reading > _kSpo2MaxValid) {
-      log('SpO2 out of valid range ($max30105Reading) — discarding',
-          name: 'BgService');
+      log(
+        'SpO2 out of valid range ($max30105Reading) — discarding',
+        name: 'BgService',
+      );
       return null;
     }
 
@@ -651,15 +683,17 @@ Future<bool> _tryRefreshToken(
     }
 
     // Use a fresh Dio without the expired token for login.
-    final loginDio = Dio(BaseOptions(
-      baseUrl: baseUrl,
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 15),
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-    ));
+    final loginDio = Dio(
+      BaseOptions(
+        baseUrl: baseUrl,
+        connectTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 15),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      ),
+    );
 
     final response = await loginDio.post(
       '/auth/login',
