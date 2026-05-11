@@ -13,11 +13,33 @@ class ReportHistoryScreen extends StatefulWidget {
 
 class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
   late Future<List<AiConsultResponse>> _future;
+  int? _patientId;
+  String? _patientName;
+  bool _isDoctorView = false;
+  bool _initialized = false;
 
   @override
-  void initState() {
-    super.initState();
-    _future = AiAssessmentApiService.getMyReports();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      _patientId = args?['patientId'] as int?;
+      _patientName = args?['patientName'] as String?;
+      _isDoctorView = args?['isDoctorView'] as bool? ?? false;
+      
+      _fetchData();
+      _initialized = true;
+    }
+  }
+
+  void _fetchData() {
+    setState(() {
+      if (_isDoctorView && _patientId != null) {
+        _future = AiAssessmentApiService.getPatientReportsForDoctor(_patientId!);
+      } else {
+        _future = AiAssessmentApiService.getMyReports();
+      }
+    });
   }
 
   @override
@@ -70,7 +92,7 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
         ),
         boxShadow: [
           BoxShadow(
-              color: AssessmentColors.primary.withOpacity(0.3),
+              color: AssessmentColors.primary.withValues(alpha: 0.3),
               blurRadius: 20,
               offset: const Offset(0, 8)),
         ],
@@ -82,7 +104,7 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(Icons.arrow_forward_ios_rounded,
@@ -109,13 +131,11 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
           const Spacer(),
           // Refresh button
           GestureDetector(
-            onTap: () => setState(() {
-              _future = AiAssessmentApiService.getMyReports();
-            }),
+            onTap: _fetchData,
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(Icons.refresh_rounded,
@@ -140,111 +160,87 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
 
   Widget _buildReportCard(BuildContext context, AiConsultResponse r, int index) {
     final dateStr = _formatDate(r.createdAt);
-    // Get a preview of the report text (first 100 chars)
-    final preview = r.aiReport.length > 120
-        ? '${r.aiReport.substring(0, 120)}...'
-        : r.aiReport;
 
     return GestureDetector(
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => ReportResultScreen(report: r),
+          builder: (_) => ReportResultScreen(
+            report: r,
+            patientNameOverride: _patientName,
+            isDoctorView: _isDoctorView,
+          ),
         ),
       ),
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
           boxShadow: AssessmentShadows.card,
         ),
-        child: Column(
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top colored bar with date
+            // Icon
             Container(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                gradient: AssessmentColors.cardGradient,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(20),
-                  topRight: Radius.circular(20),
-                ),
+                color: AssessmentColors.primarySurface,
+                borderRadius: BorderRadius.circular(14),
               ),
-              child: Row(
+              child: const Icon(Icons.description_rounded,
+                  color: AssessmentColors.primary, size: 24),
+            ),
+            const SizedBox(width: 14),
+            
+            // Title & Subtitle
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.description_rounded,
-                      color: Colors.white, size: 20),
-                  const SizedBox(width: 10),
                   Text(
-                    'التقرير ${index + 1}',
+                    'تقرير رقم ${index + 1}',
                     style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        fontFamily: 'Cairo'),
+                        fontFamily: 'Cairo',
+                        color: AssessmentColors.textPrimary),
                   ),
-                  const Spacer(),
+                  const SizedBox(height: 4),
                   Row(
                     children: [
                       const Icon(Icons.calendar_today_outlined,
-                          color: Colors.white70, size: 14),
+                          color: AssessmentColors.textMuted, size: 14),
                       const SizedBox(width: 6),
                       Text(
-                        dateStr,
+                        'تاريخ التقرير: $dateStr',
                         style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                            fontFamily: 'Cairo'),
+                            fontSize: 13,
+                            fontFamily: 'Cairo',
+                            color: AssessmentColors.textSecondary),
                       ),
                     ],
                   ),
                 ],
               ),
             ),
-            // Report preview
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    preview,
-                    style: const TextStyle(
-                        fontSize: 13,
-                        fontFamily: 'Cairo',
-                        color: AssessmentColors.textSecondary,
-                        height: 1.6),
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: AssessmentColors.primarySurface,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Row(
-                          children: [
-                            Icon(Icons.open_in_new_rounded,
-                                size: 14, color: AssessmentColors.primary),
-                            SizedBox(width: 4),
-                            Text('عرض التقرير',
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    fontFamily: 'Cairo',
-                                    color: AssessmentColors.primary)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+            
+            // Status Badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AssessmentColors.success.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text(
+                'مكتمل',
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Cairo',
+                    color: AssessmentColors.success),
               ),
             ),
           ],
@@ -270,38 +266,40 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
                   size: 60, color: AssessmentColors.primary),
             ),
             const SizedBox(height: 24),
-            const Text(
-              'لا توجد تقارير سابقة',
-              style: TextStyle(
+            Text(
+              _isDoctorView ? 'لا توجد تقارير لهذا المريض حتى الآن' : 'لا توجد تقارير سابقة',
+              style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                   fontFamily: 'Cairo',
                   color: AssessmentColors.textPrimary),
             ),
             const SizedBox(height: 12),
-            const Text(
-              'أجرِ تقييمك الأول للحصول على تقرير طبي مفصّل',
-              style: TextStyle(
-                  fontSize: 14,
-                  fontFamily: 'Cairo',
-                  color: AssessmentColors.textSecondary),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton.icon(
-              onPressed: () =>
-                  Navigator.pushNamed(context, '/assessment_welcome'),
-              icon: const Icon(Icons.play_arrow_rounded),
-              label: const Text('ابدأ تقييمًا',
-                  style: TextStyle(fontFamily: 'Cairo', fontSize: 15)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AssessmentColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
+            if (!_isDoctorView) ...[
+              const Text(
+                'أجرِ تقييمك الأول للحصول على تقرير طبي مفصّل',
+                style: TextStyle(
+                    fontSize: 14,
+                    fontFamily: 'Cairo',
+                    color: AssessmentColors.textSecondary),
+                textAlign: TextAlign.center,
               ),
-            ),
+              const SizedBox(height: 32),
+              ElevatedButton.icon(
+                onPressed: () =>
+                    Navigator.pushNamed(context, '/assessment_welcome'),
+                icon: const Icon(Icons.play_arrow_rounded),
+                label: const Text('ابدأ تقييمًا',
+                    style: TextStyle(fontFamily: 'Cairo', fontSize: 15)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AssessmentColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -318,9 +316,9 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
             const Icon(Icons.cloud_off_rounded,
                 size: 64, color: AssessmentColors.textMuted),
             const SizedBox(height: 20),
-            const Text(
-              'تعذّر تحميل التقارير',
-              style: TextStyle(
+            Text(
+              _isDoctorView ? 'تعذر تحميل تقارير المريض' : 'تعذّر تحميل التقارير',
+              style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   fontFamily: 'Cairo',
@@ -335,8 +333,7 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
                 textAlign: TextAlign.center),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: () => setState(
-                  () => _future = AiAssessmentApiService.getMyReports()),
+              onPressed: _fetchData,
               icon: const Icon(Icons.refresh_rounded),
               label: const Text('إعادة المحاولة',
                   style: TextStyle(fontFamily: 'Cairo')),

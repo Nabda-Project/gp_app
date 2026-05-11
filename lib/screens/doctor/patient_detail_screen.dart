@@ -242,6 +242,45 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
               ),
               const SizedBox(height: AppDimensions.paddingL),
 
+              // AI Reports Button
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: AppDimensions.paddingL),
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    final int backendId = patient['backendId'] ??
+                        int.tryParse(patient['id']?.toString() ?? '') ??
+                        0;
+                    if (backendId > 0) {
+                      Navigator.pushNamed(
+                        context,
+                        '/report_history',
+                        arguments: {
+                          'patientId': backendId,
+                          'patientName': patient['name'] ?? 'المريض',
+                          'isDoctorView': true,
+                        },
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.analytics_outlined),
+                  label: const Text(
+                    'عرض تقارير التقييم',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        fontFamily: 'Cairo'),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryBlue,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
+              ),
+
               // Patient Bio Info section
               _buildPatientBioSection(context, patient),
               const SizedBox(height: 140), // Extra space for FABs

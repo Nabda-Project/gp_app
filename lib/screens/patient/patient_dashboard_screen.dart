@@ -15,7 +15,7 @@ import '../../widgets/reusable/section_title.dart';
 import '../../utils/app_localizations.dart';
 import '../../models/appointment_model.dart';
 import '../../services/appointment_api_service.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../widgets/reusable/decorated_background.dart';
 import '../../widgets/animations/fade_slide_transition.dart';
@@ -41,6 +41,7 @@ import '../../models/health_metric_model.dart';
 import '../../services/token_service.dart';
 import '../../core/config/api_config.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
+import '../../features/ai_assessment/data/ai_assessment_api.dart';
 
 enum AppNetworkState { checking, normal, noInternet, serverDown }
 
@@ -623,6 +624,23 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
   /// Whether the chat tab should be visible (only when a doctor is assigned).
   bool get _showChatTab => _assignedDoctor != null;
 
+  // ── Assessment Entry Bottom Sheet ──────────────────────────────────────
+
+  void _showAssessmentEntrySheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      backgroundColor: Colors.white,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: _AssessmentEntrySheetContent(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_networkState == AppNetworkState.checking) {
@@ -701,9 +719,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
           isChatPage
               ? null
               : FloatingActionButton(
-                onPressed: () {
-                  Navigator.pushNamed(context, '/assessment_welcome');
-                },
+                onPressed: _showAssessmentEntrySheet,
                 backgroundColor: AppColors.primaryBlue,
                 child: const FaIcon(
                   FontAwesomeIcons.robot,
@@ -1259,4 +1275,363 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
   }
 
   // Follow-up card removed — appointment info is now displayed in the vitals grid.
+}
+
+// ── Assessment Entry Bottom Sheet Content ─────────────────────────────────
+// Self-contained StatefulWidget so it can manage its own async loading state.
+
+class _AssessmentEntrySheetContent extends StatefulWidget {
+  @override
+  State<_AssessmentEntrySheetContent> createState() =>
+      _AssessmentEntrySheetContentState();
+}
+
+enum _SheetState { loading, hasReports, noReports, error }
+
+class _AssessmentEntrySheetContentState
+    extends State<_AssessmentEntrySheetContent> {
+  _SheetState _state = _SheetState.loading;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReports();
+  }
+
+  Future<void> _loadReports() async {
+    if (mounted) setState(() => _state = _SheetState.loading);
+    try {
+      final reports = await AiAssessmentApiService.getMyReports();
+      if (!mounted) return;
+      setState(() {
+        _state = reports.isEmpty ? _SheetState.noReports : _SheetState.hasReports;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _state = _SheetState.error);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Drag handle
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: AppColors.grey.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // Icon
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                gradient: AppColors.primaryGradient,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primaryBlue.withValues(alpha: 0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: const FaIcon(
+                FontAwesomeIcons.heartPulse,
+                color: Colors.white,
+                size: 32,
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Dynamic content based on state
+            _buildBody(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    switch (_state) {
+      case _SheetState.loading:
+        return _buildLoading();
+      case _SheetState.hasReports:
+        return _buildHasReports();
+      case _SheetState.noReports:
+        return _buildNoReports();
+      case _SheetState.error:
+        return _buildError();
+    }
+  }
+
+  Widget _buildLoading() {
+    return const Column(
+      children: [
+        Text(
+          'تقييم صحة القلب',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            fontFamily: 'Cairo',
+            color: AppColors.darkBlue,
+          ),
+        ),
+        SizedBox(height: 20),
+        SizedBox(
+          width: 36,
+          height: 36,
+          child: CircularProgressIndicator(
+            color: AppColors.primaryBlue,
+            strokeWidth: 3,
+          ),
+        ),
+        SizedBox(height: 12),
+        Text(
+          'جارٍ التحقق من التقارير السابقة...',
+          style: TextStyle(
+            fontSize: 14,
+            fontFamily: 'Cairo',
+            color: AppColors.grey,
+          ),
+        ),
+        SizedBox(height: 12),
+      ],
+    );
+  }
+
+  Widget _buildHasReports() {
+    return Column(
+      children: [
+        const Text(
+          'تقييم صحة القلب',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            fontFamily: 'Cairo',
+            color: AppColors.darkBlue,
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'هل تريد بدء تقييم جديد أم عرض تقاريرك السابقة؟',
+          style: TextStyle(
+            fontSize: 14,
+            fontFamily: 'Cairo',
+            color: AppColors.grey,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 24),
+        // Start new assessment
+        SizedBox(
+          width: double.infinity,
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: AppColors.primaryGradient,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryBlue.withValues(alpha: 0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/assessment_welcome');
+              },
+              icon: const Icon(Icons.play_arrow_rounded, color: Colors.white),
+              label: const Text('بدء تقييم جديد',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Cairo')),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent,
+                shadowColor: Colors.transparent,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        // View previous reports
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/report_history');
+            },
+            icon: const Icon(Icons.history_rounded),
+            label: const Text('عرض التقارير السابقة',
+                style: TextStyle(
+                    fontSize: 16,
+                    fontFamily: 'Cairo',
+                    fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primaryBlue,
+              side: const BorderSide(color: AppColors.primaryBlue, width: 1.5),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNoReports() {
+    return Column(
+      children: [
+        const Text(
+          'لا توجد تقارير سابقة',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            fontFamily: 'Cairo',
+            color: AppColors.darkBlue,
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'يمكنك بدء تقييم جديد الآن لإنشاء أول تقرير طبي.',
+          style: TextStyle(
+            fontSize: 14,
+            fontFamily: 'Cairo',
+            color: AppColors.grey,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 24),
+        SizedBox(
+          width: double.infinity,
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: AppColors.primaryGradient,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryBlue.withValues(alpha: 0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/assessment_welcome');
+              },
+              icon: const Icon(Icons.play_arrow_rounded, color: Colors.white),
+              label: const Text('بدء تقييم جديد',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Cairo')),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent,
+                shadowColor: Colors.transparent,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildError() {
+    return Column(
+      children: [
+        const Icon(Icons.cloud_off_rounded, size: 40, color: AppColors.grey),
+        const SizedBox(height: 12),
+        const Text(
+          'تعذر تحميل التقارير السابقة',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            fontFamily: 'Cairo',
+            color: AppColors.darkBlue,
+          ),
+        ),
+        const SizedBox(height: 24),
+        // Start new assessment anyway
+        SizedBox(
+          width: double.infinity,
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: AppColors.primaryGradient,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryBlue.withValues(alpha: 0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/assessment_welcome');
+              },
+              icon: const Icon(Icons.play_arrow_rounded, color: Colors.white),
+              label: const Text('بدء تقييم جديد',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Cairo')),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent,
+                shadowColor: Colors.transparent,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Retry
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _loadReports,
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('إعادة المحاولة',
+                style: TextStyle(
+                    fontSize: 16,
+                    fontFamily: 'Cairo',
+                    fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primaryBlue,
+              side: const BorderSide(color: AppColors.primaryBlue, width: 1.5),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
