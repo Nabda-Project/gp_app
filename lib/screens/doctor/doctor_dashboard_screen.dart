@@ -715,14 +715,13 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                                     color: Colors.white.withValues(alpha: 0.2),
                                     shape: BoxShape.circle,
                                   ),
-                                  child: const CircleAvatar(
+                                  child: UserAvatar(
+                                    imageUrl: _currentUser?.profileImageUrl,
+                                    name: _currentUser?.fullName ?? 'Doctor',
                                     radius: 26,
                                     backgroundColor: Colors.white,
-                                    child: Icon(
-                                      Icons.medical_services,
-                                      color: AppColors.primaryBlue,
-                                      size: 26,
-                                    ),
+                                    foregroundColor: AppColors.primaryBlue,
+                                    fallbackIcon: Icons.medical_services,
                                   ),
                                 ),
                                 const SizedBox(width: AppDimensions.paddingM),
