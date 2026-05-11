@@ -91,6 +91,12 @@ class AiConsultResponse {
   final int id;
   final int patientId;
   final String patientInput;
+  final String? patientRequestData;
+  final String? patientName;
+  final int? patientAge;
+  final String? patientGender;
+  final double? patientHeight;
+  final double? patientWeight;
   final String aiReport;
   final DateTime createdAt;
 
@@ -98,6 +104,12 @@ class AiConsultResponse {
     required this.id,
     required this.patientId,
     required this.patientInput,
+    this.patientRequestData,
+    this.patientName,
+    this.patientAge,
+    this.patientGender,
+    this.patientHeight,
+    this.patientWeight,
     required this.aiReport,
     required this.createdAt,
   });
@@ -107,6 +119,12 @@ class AiConsultResponse {
       id: json['id'] as int? ?? 0,
       patientId: json['patientId'] as int? ?? 0,
       patientInput: json['patientInput'] as String? ?? '',
+      patientRequestData: json['patientRequestData'] as String?,
+      patientName: json['patientName'] as String?,
+      patientAge: json['patientAge'] as int?,
+      patientGender: json['patientGender'] as String?,
+      patientHeight: (json['patientHeight'] as num?)?.toDouble(),
+      patientWeight: (json['patientWeight'] as num?)?.toDouble(),
       aiReport: json['aiReport'] as String? ?? '',
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'] as String) ?? DateTime.now()

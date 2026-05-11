@@ -167,7 +167,7 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
         MaterialPageRoute(
           builder: (_) => ReportResultScreen(
             report: r,
-            patientNameOverride: _patientName,
+            patientNameOverride: _patientName ?? r.patientName,
             isDoctorView: _isDoctorView,
           ),
         ),

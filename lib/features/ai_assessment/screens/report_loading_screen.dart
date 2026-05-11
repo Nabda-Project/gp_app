@@ -102,11 +102,14 @@ class _ReportLoadingScreenState extends State<ReportLoadingScreen>
 
       if (!mounted) return;
 
-      // Navigate to report result screen
+      // Navigate to report result screen with the original submission JSON
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => ReportResultScreen(report: result),
+          builder: (_) => ReportResultScreen(
+            report: result,
+            submissionJson: widget.submissionJson,
+          ),
         ),
       );
     } catch (e) {
