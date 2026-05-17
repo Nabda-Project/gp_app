@@ -46,3 +46,37 @@ app.*.map.json
 
 # Back-end (Spring Boot) – tracked separately
 back-end/
+
+# Archives
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
+
+# Flutter/Dart generated files
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+
+# Flutter telemetry / tool cache
+dart-flutter-telemetry-*
+CLIENT_ID
+.codex_appdata/
+*.log
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Generated random/cache files
+[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]*
+*.txt
