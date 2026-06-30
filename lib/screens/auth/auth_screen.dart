@@ -33,7 +33,6 @@ class _AuthScreenState extends State<AuthScreen>
   final _loginPasswordController = TextEditingController();
   final _registerNameController = TextEditingController();
   final _registerEmailController = TextEditingController();
-  final _registerLicenseController = TextEditingController();
   final _registerPhoneController = TextEditingController();
   final _registerHeightController = TextEditingController();
   final _registerWeightController = TextEditingController();
@@ -59,7 +58,6 @@ class _AuthScreenState extends State<AuthScreen>
     _loginPasswordController.dispose();
     _registerNameController.dispose();
     _registerEmailController.dispose();
-    _registerLicenseController.dispose();
     _registerPhoneController.dispose();
     _registerHeightController.dispose();
     _registerWeightController.dispose();
@@ -121,8 +119,8 @@ class _AuthScreenState extends State<AuthScreen>
         _selectedRole == AppLocalizations.of(context)!.get('patient') ||
         _selectedRole == 'Patient';
 
-    // Only require DOB and gender for patients
-    if (isPatientRole && _registerDateOfBirth == null) {
+    // Require DOB and gender for everyone
+    if (_registerDateOfBirth == null) {
       _showError('Please select your Date of Birth');
       return;
     }
@@ -644,22 +642,7 @@ class _AuthScreenState extends State<AuthScreen>
             ),
             const SizedBox(height: AppDimensions.paddingM),
 
-            // Doctor-specific field
-            if (_selectedRole ==
-                AppLocalizations.of(context)!.get('doctor')) ...[
-              _buildTextField(
-                AppLocalizations.of(context)!.get('medicalLicense'),
-                Icons.badge,
-                controller: _registerLicenseController,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return AppLocalizations.of(context)!.get('enterLicense');
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: AppDimensions.paddingM),
-            ],
+
 
             // Phone Number field
             _buildTextField(
@@ -676,11 +659,9 @@ class _AuthScreenState extends State<AuthScreen>
             ),
             const SizedBox(height: AppDimensions.paddingM),
 
-            // Date of Birth field (patients only)
-            if (_selectedRole == AppLocalizations.of(context)!.get('patient')) ...[
-              _buildDateOfBirthField(),
-              const SizedBox(height: AppDimensions.paddingM),
-            ],
+            // Date of Birth field
+            _buildDateOfBirthField(),
+            const SizedBox(height: AppDimensions.paddingM),
 
             // Gender Dropdown
             _buildGenderDropdown(),

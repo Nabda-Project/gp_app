@@ -116,7 +116,7 @@ class ChatService {
 
     _stompClient = StompClient(
       config: StompConfig.sockJS(
-        url: 'http://${ApiConfig.host}:${ApiConfig.port}/ws',
+        url: 'http://${ApiConfig.host}/ws',
         stompConnectHeaders: {
           'Authorization': 'Bearer $token',
         },

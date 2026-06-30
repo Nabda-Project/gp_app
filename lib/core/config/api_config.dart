@@ -1,10 +1,8 @@
-//for real device wifi or emulator
-
-// for real device via Tailscale
 class ApiConfig {
-  static const String host = '100.76.88.106';
-  static const String port = '8080';
+  static const String host =
+      'smart-medical-api-env.eba-jxdmccmi.us-east-1.elasticbeanstalk.com';
 
-  static const String baseUrl = 'http://$host:$port/api';
-  static const String wsUrl = 'ws://$host:$port/ws';
+  static const String baseUrl = 'http://$host/api';
+
+  static const String wsUrl = 'ws://$host/ws';
 }

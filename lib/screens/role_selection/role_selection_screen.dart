@@ -54,8 +54,8 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
       return;
     }
 
-    // Only require DOB for patients
-    if (selectedRole == 'patient' && _dateOfBirth == null) {
+    // Require DOB for all users (both Doctor and Patient)
+    if (_dateOfBirth == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Please select your Date of Birth')),
@@ -316,12 +316,12 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Date of Birth field (patients only)
+              // Date of Birth field
               AnimatedOpacity(
-                opacity: isPatient ? 1.0 : 0.0,
+                opacity: selectedRole != null ? 1.0 : 0.0,
                 duration: const Duration(milliseconds: 300),
                 child:
-                    !isPatient
+                    selectedRole == null
                         ? const SizedBox.shrink()
                         : InkWell(
                           onTap: () async {
