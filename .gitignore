@@ -80,3 +80,7 @@ Thumbs.db
 # Generated random/cache files
 [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]*
 *.txt
+
+# Secrets and reports
+gitleaks-report.json
+replacements.txt
